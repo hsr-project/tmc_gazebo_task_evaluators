@@ -120,14 +120,14 @@ int main(int argc, char **argv)
         ROS_INFO("task1_per_delivery is defined as: %f", task1_per_delivery);
     } else {
         task1_per_delivery = 10.0;
-        ROS_ERROR("Failed to get param 'task1_per_delivery' use default '%f'", task1_per_delivery);
+        ROS_INFO("Failed to get param 'task1_per_delivery' use default '%f'", task1_per_delivery);
     }
 
     if (n.getParam("task1_per_correct_category", task1_per_correct_category)) {
         ROS_INFO("task1_per_correct_category is defined as: %f", task1_per_correct_category);
     } else {
         task1_per_correct_category = 10.0;
-        ROS_ERROR("Failed to get param 'task1_per_correct_category' use default '%f'", task1_per_correct_category);
+        ROS_INFO("Failed to get param 'task1_per_correct_category' use default '%f'", task1_per_correct_category);
     }
     
     ros::Time::init();
