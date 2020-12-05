@@ -209,6 +209,7 @@ target_link_libraries(hhcc_move_camera_controller
     pthread
 )
 target_link_libraries(wrs_score_counter
+    ${POCO_FOUNDATION}
     ${catkin_LIBRARIES}
     pthread
 )

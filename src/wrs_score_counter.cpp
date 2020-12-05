@@ -31,15 +31,24 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 */
 #include <ros/ros.h>
+#include <tf/tf.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Int16.h>
 #include <std_msgs/Float32.h>
+#include <geometry_msgs/Pose.h>
+#include <gazebo_msgs/GetWorldProperties.h>
+#include <gazebo_msgs/GetModelState.h>
 
 #include <iostream>
 #include <string>
 #include <map>
 #include <boost/bind.hpp>
+
+#include <Poco/RegularExpression.h>
+
+using Poco::RegularExpression;
+RegularExpression task2_re("task2_[0-9]+_ycb_[0-9]+_");
 
 double task1_per_delivery;
 double task1_per_correct_category;
@@ -50,7 +59,30 @@ double task1_category_score;
 double task1_orientation_score;
 double task2a_score;
 
+ros::ServiceClient getWorldProperties;
+ros::ServiceClient getModelState;
+ros::Publisher pubmsg;
+
 ros::Time prev_detect_cb;
+
+void get_objects_in_shelf(std::vector<std::string> &objects)
+{
+    gazebo_msgs::GetWorldProperties world_properties;
+    getWorldProperties.call(world_properties);
+    objects.resize(0);
+    for (auto name: world_properties.response.model_names) {
+        gazebo_msgs::GetModelState model_state;
+        model_state.request.model_name = name;
+        model_state.request.relative_entity_name = "wrc_bookshelf";
+        getModelState.call(model_state);
+        auto p = model_state.response.pose;
+        if (name != "wrc_bookshelf" && 
+            fabs(p.position.x) < 0.8 / 2 &&
+            fabs(p.position.y) < 0.28 / 2 ) {
+            objects.push_back(name);
+        }
+    }
+}
 
 void cb_detect(const std_msgs::BoolConstPtr& detect)
 {
@@ -72,6 +104,14 @@ void cb_hsrb_in_room2(const std_msgs::Int16::ConstPtr& count)
             task2a_score = 100.0;
             first_time = false;
             ROS_WARN("[WRS] Entered room 2!");
+            std::vector<std::string> objects_in_shelf;
+            get_objects_in_shelf(objects_in_shelf);
+            std::string obj = objects_in_shelf[rand() % objects_in_shelf.size()];
+            task2_re.subst(obj, "");
+            std_msgs::String msg;
+            msg.data = obj;
+            pubmsg.publish(msg);
+            ROS_WARN("[WRS] Asked to take %s", obj.c_str());
         }
     }
 }
@@ -130,13 +170,19 @@ int main(int argc, char **argv)
         ROS_INFO("Failed to get param 'task1_per_correct_category' use default '%f'", task1_per_correct_category);
     }
     
+    ros::service::waitForService("/gazebo/get_world_properties");
+    getWorldProperties = n.serviceClient<gazebo_msgs::GetWorldProperties>("/gazebo/get_world_properties");
+
+    ros::service::waitForService("/gazebo/get_model_state");
+    getModelState = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
+
     ros::Time::init();
 
     //collision_score = 0.0;
     prev_detect_cb = ros::Time::now();
 
-    ros::Publisher pub = n.advertise<std_msgs::Float32>("/score", 1000);
-    ros::Publisher pubmsg = n.advertise<std_msgs::String>("message", 1000);
+    ros::Publisher pub = n.advertise<std_msgs::Float32>("/score", 1000, true);
+    pubmsg = n.advertise<std_msgs::String>("/message", 1000, true);
     ros::Rate rate(10);
 
     ros::Subscriber sub_drawerleft_any = n.subscribe<std_msgs::Int16>("/any_in_drawerleft_detector/count", 1, boost::bind(&cb_count_delivery, "drawerleft", _1));
