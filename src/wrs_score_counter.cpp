@@ -96,6 +96,15 @@ void cb_detect(const std_msgs::BoolConstPtr& detect)
     }
 }
 
+std::string random_object_in_shelf()
+{
+    std::vector<std::string> objects_in_shelf;
+    get_objects_in_shelf(objects_in_shelf);
+    std::string obj = objects_in_shelf[rand() % objects_in_shelf.size()];
+    task2_re.subst(obj, "");
+    return obj;
+}
+
 void cb_hsrb_in_room2(const std_msgs::Int16::ConstPtr& count)
 {
     static bool first_time = true;
@@ -104,14 +113,28 @@ void cb_hsrb_in_room2(const std_msgs::Int16::ConstPtr& count)
             task2a_score = 100.0;
             first_time = false;
             ROS_WARN("[WRS] Entered room 2!");
-            std::vector<std::string> objects_in_shelf;
-            get_objects_in_shelf(objects_in_shelf);
-            std::string obj = objects_in_shelf[rand() % objects_in_shelf.size()];
-            task2_re.subst(obj, "");
             std_msgs::String msg;
-            msg.data = obj;
+            msg.data = random_object_in_shelf();
             pubmsg.publish(msg);
-            ROS_WARN("[WRS] Asked to take %s", obj.c_str());
+            ROS_WARN("[WRS] Asked to take %s", msg.data.c_str());
+        }
+    }
+}
+
+void cb_hsrb_in_humanfront(const std_msgs::Int16::ConstPtr& count)
+{
+    static int times = 0;
+    if (count->data > 0) {
+        if (times == 0) {
+            times = 1;
+            ROS_WARN("[WRS] Delivered first object to human!");
+            std_msgs::String msg;
+            msg.data = random_object_in_shelf();
+            pubmsg.publish(msg);
+            ROS_WARN("[WRS] Asked to take %s", msg.data.c_str());
+        } else if (times == 1) {
+            times = 2;
+            ROS_WARN("[WRS] Delivered second object to human!");
         }
     }
 }
@@ -216,6 +239,7 @@ int main(int argc, char **argv)
 
     ros::Subscriber sub = n.subscribe("/undesired_contact_detector/detect", 1, cb_detect);
     ros::Subscriber sub_hsrb_in_room2 = n.subscribe<std_msgs::Int16>("/hsrb_in_room2_detector/count", 1, cb_hsrb_in_room2);
+    ros::Subscriber sub_hsrb_in_humanfront = n.subscribe<std_msgs::Int16>("/hsrb_in_humanfront_detector/count", 1, cb_hsrb_in_humanfront);
 
     task1_delivery_score = 0.0;
     task1_category_score = 0.0;
