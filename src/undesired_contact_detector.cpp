@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2019 TOYOTA MOTOR CORPORATION
+Copyright (c) 2020 MID Academic Promotions, Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -40,6 +41,7 @@ DAMAGE.
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <thread>
 
 #include <Poco/Glob.h>
 
@@ -52,6 +54,9 @@ std::string target_model_name;
 std::vector<GlobPtr> glob_filters;
 std::unordered_map<std::string, bool> seen_models;
 std::unordered_map<std::string, bool> except_models;
+
+boost::shared_ptr<gazebo::msgs::Contacts const> msg(new gazebo::msgs::Contacts());
+std::mutex msg_mtx;
 
 std::string extract_model_name(const std::string &col)
 {
@@ -72,10 +77,17 @@ void check_glob(const std::string &obj)
 
 void cb(ConstContactsPtr &_msg)
 {
+    std::lock_guard<std::mutex> lock(msg_mtx);
+    msg = _msg;
+}
+
+void do_detect_contact()
+{
+    std::lock_guard<std::mutex> lock(msg_mtx);
     bool has_contact = false;
     std::string objname = "";
-    for (unsigned int i = 0; i < _msg->contact_size(); ++i) {
-        const gazebo::msgs::Contact &contact = _msg->contact(i);
+    for (unsigned int i = 0; i < msg->contact_size(); ++i) {
+        const gazebo::msgs::Contact &contact = msg->contact(i);
 
         std::string obj1 = extract_model_name(contact.collision1());
         std::string obj2 = extract_model_name(contact.collision2());
@@ -138,6 +150,7 @@ int main(int argc, char **argv)
     gazebo::transport::SubscriberPtr sub = node->Subscribe("~/physics/contacts", cb);
 
     while (ros::ok()) {
+        do_detect_contact();
         if (detect_contact) {
             ROS_INFO("detect contact with %s", contact_with.c_str());
         }
