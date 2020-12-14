@@ -58,6 +58,10 @@ double task1_delivery_score;
 double task1_category_score;
 double task1_orientation_score;
 double task2a_score;
+std::string task2_target;
+std::map<std::string, bool> task2_checked_objects;
+
+int seed;
 
 ros::ServiceClient getWorldProperties;
 ros::ServiceClient getModelState;
@@ -84,6 +88,25 @@ void get_objects_in_shelf(std::vector<std::string> &objects)
     }
 }
 
+void get_objects_in_humanfront(std::vector<std::string> &objects)
+{
+    gazebo_msgs::GetWorldProperties world_properties;
+    getWorldProperties.call(world_properties);
+    objects.resize(0);
+    for (auto name: world_properties.response.model_names) {
+        gazebo_msgs::GetModelState model_state;
+        model_state.request.model_name = name;
+        model_state.request.relative_entity_name = "wrc_frame";
+        getModelState.call(model_state);
+        auto p = model_state.response.pose;
+        if (name.find("task2_") == 0 &&
+            fabs(p.position.x - 1.5) < 0.3 / 2 &&
+            fabs(p.position.y - 1.2) < 1.6 / 2 ) {
+            objects.push_back(name);
+        }
+    }
+}
+
 void cb_detect(const std_msgs::BoolConstPtr& detect)
 {
     static bool first_time = true;
@@ -105,6 +128,23 @@ std::string random_object_in_shelf()
     return obj;
 }
 
+void count_task2_score()
+{
+    std::vector<std::string> objects_in_humanfront;
+    get_objects_in_humanfront(objects_in_humanfront);
+    for (auto obj: objects_in_humanfront) {
+        if (task2_checked_objects.count(obj) == 0) {
+            task2_checked_objects[obj] = true;
+            task2_re.subst(obj, "");
+            if (task2_target == obj) {
+                // bonus score
+            } else {
+                // regular score
+            }
+        }
+    }
+}
+
 void cb_hsrb_in_room2(const std_msgs::Int16::ConstPtr& count)
 {
     static bool first_time = true;
@@ -113,8 +153,9 @@ void cb_hsrb_in_room2(const std_msgs::Int16::ConstPtr& count)
             task2a_score = 100.0;
             first_time = false;
             ROS_WARN("[WRS] Entered room 2!");
+            task2_target = random_object_in_shelf();
             std_msgs::String msg;
-            msg.data = random_object_in_shelf();
+            msg.data = task2_target;
             pubmsg.publish(msg);
             ROS_WARN("[WRS] Asked to take %s", msg.data.c_str());
         }
@@ -127,14 +168,23 @@ void cb_hsrb_in_humanfront(const std_msgs::Int16::ConstPtr& count)
     if (count->data > 0) {
         if (times == 0) {
             times = 1;
+            // count score
+            count_task2_score();
             ROS_WARN("[WRS] Delivered first object to human!");
+            task2_target = random_object_in_shelf();
             std_msgs::String msg;
-            msg.data = random_object_in_shelf();
+            msg.data = task2_target;
             pubmsg.publish(msg);
             ROS_WARN("[WRS] Asked to take %s", msg.data.c_str());
         } else if (times == 1) {
             times = 2;
+            // count score
+            count_task2_score();
             ROS_WARN("[WRS] Delivered second object to human!");
+            std_msgs::String msg;
+            msg.data = "done";
+            pubmsg.publish(msg);
+            ROS_WARN("[WRS] All done!");
         }
     }
 }
@@ -193,6 +243,15 @@ int main(int argc, char **argv)
         ROS_INFO("Failed to get param 'task1_per_correct_category' use default '%f'", task1_per_correct_category);
     }
     
+    if (n.getParam("seed", seed)) {
+        ROS_INFO("seed is defined as: %i", seed);
+    } else {
+        seed = 0;
+        ROS_INFO("Failed to get param 'seed' use default '%i'", seed);
+    }
+
+    srand(seed);
+
     ros::service::waitForService("/gazebo/get_world_properties");
     getWorldProperties = n.serviceClient<gazebo_msgs::GetWorldProperties>("/gazebo/get_world_properties");
 
