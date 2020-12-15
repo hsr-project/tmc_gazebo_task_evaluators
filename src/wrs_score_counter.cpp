@@ -162,20 +162,28 @@ void count_task2_score()
 {
     std::vector<std::string> objects_in_humanfront;
     get_objects_in_humanfront(objects_in_humanfront);
+    bool correct = false;
+    bool delivered = false;
     for (auto obj: objects_in_humanfront) {
         if (task2_checked_objects.count(obj) == 0) {
             task2_checked_objects[obj] = true;
             task2_re.subst(obj, "");
             if (task2_target == obj) {
-                // bonus score
-                ROS_WARN("[WRS] You have delivered object and the object is correct!");
-                task2_score += 100.0;
-            } else {
-                // regular score
-                ROS_WARN("[WRS] You have delivered object and the object is incorrect!");
-                task2_score += 40.0;
+                correct = true;
             }
+            delivered = true;
         }
+    }
+    if (correct) {
+        // bonus score
+        ROS_WARN("[WRS] You have delivered object and the object is correct!");
+        task2_score += 100.0;
+    } else if (delivered) {
+        // regular score
+        ROS_WARN("[WRS] You have delivered object and the object is incorrect!");
+        task2_score += 40.0;
+    } else {
+        ROS_WARN("[WRS] No object delivered...");
     }
 }
 
@@ -237,16 +245,26 @@ void cb_hsrb_in_humanfront(const std_msgs::Int16::ConstPtr& count)
             count_task2_score();
             double task2_end_time = ros::Time::now().toSec();
             double task2_duration = task2_end_time - task2_start_time;
-            if (task2_duration <= 5*60+15) {
-                task2_time_bonus = 50;
+            std::vector<std::string> remaining_task1_objects;
+            get_task1_objects_on_tables(remaining_task1_objects);
+            std::vector<std::string> objects_in_humanfront;
+            get_objects_in_humanfront(objects_in_humanfront);
+            if (task2_duration <= 5*60.0+15.0 && objects_in_humanfront.size() == 2) {
+                task2_time_bonus = 50.0;
                 ROS_WARN("[WRS] Congratulations! You have finished task2 within given time.");
             }
             double overall_time = task2_end_time - task1_start_time;
-            if (overall_time <= 20*60) {
-                double remaining_time = overall_time - 20*60;
-                double remaining_time_in_minute = floor(remaining_time / 60.0);
-                ROS_WARN("[WRS] Congratulations! You have finished all the tasks within given time.");
-                overall_time_bonus = 20.0 * remaining_time_in_minute;
+            ROS_WARN("[WRS] Overall time %f [seconds].", overall_time);
+            double remaining_time = 20*60.0 - overall_time;
+            double remaining_time_in_minute = floor(remaining_time / 60.0);
+            ROS_WARN("[WRS] Remaining time %.0f [minute].", remaining_time_in_minute);
+            if (remaining_time_in_minute > 0.0) {
+                if (remaining_task1_objects.size() == 0 && objects_in_humanfront.size() == 2) {
+                    ROS_WARN("[WRS] Congratulations! You have finished all the tasks within given time.");
+                    overall_time_bonus = 20.0 * remaining_time_in_minute;
+                } else {
+                    ROS_WARN("[WRS] No remaining time bonus due to unfinished tasks.");
+                }
             }
             std_msgs::String msg;
             msg.data = "done";
@@ -377,7 +395,7 @@ int main(int argc, char **argv)
     task2_time_bonus = 0.0;
     overall_time_bonus = 0.0;
 
-    task1_start_time = ros::Time::now().toSec();
+    task1_start_time = 0.0;
 
     double prev_score = 0.0;
     while (ros::ok()) {
