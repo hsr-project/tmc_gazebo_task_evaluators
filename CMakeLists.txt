@@ -157,6 +157,7 @@ add_executable(hhcc_score_counter src/hhcc_score_counter.cpp)
 add_executable(hhcc_move_task_score_counter src/hhcc_move_task_score_counter.cpp)
 add_executable(hhcc_tidy_camera_controller src/hhcc_tidy_camera_controller.cpp)
 add_executable(hhcc_move_camera_controller src/hhcc_move_camera_controller.cpp)
+add_executable(wrs_camera_controller src/wrs_camera_controller.cpp)
 add_executable(wrs_score_counter src/wrs_score_counter.cpp)
 
 if(gazebo_VERSION_MAJOR GREATER 8)
@@ -208,6 +209,11 @@ target_link_libraries(hhcc_move_camera_controller
     ${catkin_LIBRARIES}
     pthread
 )
+target_link_libraries(wrs_camera_controller
+    ${GAZEBO_LIBRARIES}
+    ${catkin_LIBRARIES}
+    pthread
+)
 target_link_libraries(wrs_score_counter
     ${POCO_FOUNDATION}
     ${catkin_LIBRARIES}
@@ -249,6 +255,7 @@ install(TARGETS
   wrs_score_counter
   hhcc_tidy_camera_controller
   hhcc_move_camera_controller
+  wrs_camera_controller
   score_widget
   # ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
