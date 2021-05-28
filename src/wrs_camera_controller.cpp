@@ -44,6 +44,8 @@ DAMAGE.
 
 int main(int argc, char **argv)
 {
+    std::string robot_name;
+
     gazebo::msgs::Pose pose_room1;
     /*
     position {
@@ -114,12 +116,19 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "wrs_camera_controller");
     ros::NodeHandle n("~");
 
+    if (n.getParam("robot_name", robot_name)) {
+        ROS_INFO("box_name is defined as: %s", robot_name.c_str());
+    } else {
+        robot_name = "hsrb";
+        ROS_ERROR("Failed to get param 'robot_name' use default '%s'", robot_name.c_str());
+    }
+
     ros::Rate rate(1);
 
     ros::service::waitForService("/gazebo/get_model_state");
     ros::ServiceClient getModelState = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
     gazebo_msgs::GetModelState model_state;
-    model_state.request.model_name = "hsrb";
+    model_state.request.model_name = robot_name;
 
     // subscription to contacts info on gazebo transport
     gazebo::client::setup(argc, argv);
