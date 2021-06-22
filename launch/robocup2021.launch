@@ -31,6 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 <launch>
   <arg name="robot_name" default="$(optenv ROBOT_NAME hsrb)" />
   <arg name="camera_controller" default="false" />
+  <arg name="seed" default="1" />
 
   <!-- task evaluators -->
 
@@ -209,6 +210,7 @@ POSSIBILITY OF SUCH DAMAGE.
   </node>
 
   <node pkg="tmc_gazebo_task_evaluators" type="wrs_score_counter" name="wrs_score_counter" output="screen">
+    <param name="seed" value="$(arg seed)" />
   </node>
 
   <group if="$(arg camera_controller)">
