@@ -89,7 +89,7 @@ void get_objects_in_shelf(std::vector<std::string> &objects)
     for (auto name: world_properties.response.model_names) {
         gazebo_msgs::GetModelState model_state;
         model_state.request.model_name = name;
-        model_state.request.relative_entity_name = "wrc_bookshelf";
+        model_state.request.relative_entity_name = "wrc_bookshelf::link";
         getModelState.call(model_state);
         auto p = model_state.response.pose;
         if (name != "wrc_bookshelf" && 
@@ -108,7 +108,7 @@ void get_objects_in_humanfront(std::vector<std::string> &objects)
     for (auto name: world_properties.response.model_names) {
         gazebo_msgs::GetModelState model_state;
         model_state.request.model_name = name;
-        model_state.request.relative_entity_name = "wrc_frame";
+        model_state.request.relative_entity_name = "wrc_frame::link";
         getModelState.call(model_state);
         auto p = model_state.response.pose;
         if (name.find("task2_") == 0 &&
@@ -127,7 +127,7 @@ void get_task1_objects_on_tables(std::vector<std::string> &objects)
     for (auto name: world_properties.response.model_names) {
         gazebo_msgs::GetModelState model_state;
         model_state.request.model_name = name;
-        model_state.request.relative_entity_name = "wrc_frame";
+        model_state.request.relative_entity_name = "wrc_frame::link";
         getModelState.call(model_state);
         auto p = model_state.response.pose;
         if (name.find("task1_") == 0 &&
