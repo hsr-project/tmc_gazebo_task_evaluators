@@ -27,7 +27,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import os
-import ConfigParser
+try:
+  from ConfigParser import SafeConfigParser as parser
+except:
+  from configparser import ConfigParser as parser
 
 INI_FILE = os.path.expanduser('~/.gazebo/gui.ini')
 
@@ -38,13 +41,13 @@ if not os.path.exists(basedir):
 if not os.path.exists(INI_FILE):
   open(INI_FILE, 'a').close()
 
-inifile = ConfigParser.SafeConfigParser()
+inifile = parser()
 inifile.read(INI_FILE)
 
 # create section overlay_plugins in case if there is none
 try:
   inifile.add_section('overlay_plugins')
-except ConfigParser.DuplicateSectionError:
+except:
   pass
 
 # add setting for score_widget
