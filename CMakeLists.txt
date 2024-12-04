@@ -4,27 +4,30 @@ project(tmc_gazebo_task_evaluators)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp)
+find_package(catkin REQUIRED COMPONENTS roscpp gazebo_msgs)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
-find_package(gazebo REQUIRED)
-if(gazebo_VERSION_MAJOR GREATER 8)
-  #ign_import_target(UUID)
-endif()
-include_directories(${GAZEBO_INCLUDE_DIRS})
-link_directories(${GAZEBO_LIBRARY_DIRS})
-list(APPEND CMAKE_CXX_FLAGS "${GAZEBO_CXX_FLAGS}")
+find_package(gazebo)
 
-if(gazebo_VERSION_MAJOR GREATER 8)
-  find_package(Qt5Widgets REQUIRED)
-  find_package(Qt5Core REQUIRED)
-  include_directories(${Qt5Core_INCLUDE_DIRS})
-else()
-  find_package(Qt4)
-  include(${QT_USE_FILE})
-  add_definitions(${QT_DEFINITIONS})
+if(gazebo_FOUND)
+  if(gazebo_VERSION_MAJOR GREATER 8)
+    ign_import_target(UUID)
+  endif()
+  include_directories(${GAZEBO_INCLUDE_DIRS})
+  link_directories(${GAZEBO_LIBRARY_DIRS})
+  list(APPEND CMAKE_CXX_FLAGS "${GAZEBO_CXX_FLAGS}")
+
+  if(gazebo_VERSION_MAJOR GREATER 8)
+    find_package(Qt5Widgets REQUIRED)
+    find_package(Qt5Core REQUIRED)
+    include_directories(${Qt5Core_INCLUDE_DIRS})
+  else()
+    find_package(Qt4)
+    include(${QT_USE_FILE})
+    add_definitions(${QT_DEFINITIONS})
+  endif()
 endif()
 
 FIND_PATH(POCO_INCLUDE_DIR Poco/Poco.h PATHS /usr/include)
@@ -121,10 +124,10 @@ include_directories(${EIGEN3_INCLUDE_DIRS})
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-  LIBRARIES score_widget
-  CATKIN_DEPENDS roscpp
+#  LIBRARIES score_widget
+  CATKIN_DEPENDS roscpp gazebo_msgs
   #  DEPENDS system_lib
-  DEPENDS Eigen3
+  #DEPENDS Eigen3
 )
 
 ###########
@@ -150,43 +153,68 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 # add_dependencies(tmc_gazebo_task_evaluators ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(undesired_contact_detector src/undesired_contact_detector.cpp)
-add_executable(reached_region_calculator src/reached_region_calculator.cpp)
+if(gazebo_FOUND)
+  add_executable(undesired_contact_detector src/undesired_contact_detector.cpp)
+  add_executable(reached_region_calculator src/reached_region_calculator.cpp)
+  add_executable(hhcc_tidy_camera_controller src/hhcc_tidy_camera_controller.cpp)
+  add_executable(hhcc_move_camera_controller src/hhcc_move_camera_controller.cpp)
+  add_executable(wrs_camera_controller src/wrs_camera_controller.cpp)
+  if(gazebo_VERSION_MAJOR GREATER 8)
+    QT5_WRAP_CPP(headers_MOC src/score_widget.hh)
+  else()
+    QT4_WRAP_CPP(headers_MOC src/score_widget.hh)
+  endif()
+  add_library(score_widget SHARED ${headers_MOC}
+    src/score_widget.cpp)
+endif()
 add_executable(object_in_box_detector src/object_in_box_detector.cpp)
 add_executable(hhcc_score_counter src/hhcc_score_counter.cpp)
 add_executable(hhcc_move_task_score_counter src/hhcc_move_task_score_counter.cpp)
-add_executable(hhcc_tidy_camera_controller src/hhcc_tidy_camera_controller.cpp)
-add_executable(hhcc_move_camera_controller src/hhcc_move_camera_controller.cpp)
-add_executable(wrs_camera_controller src/wrs_camera_controller.cpp)
 add_executable(wrs_score_counter src/wrs_score_counter.cpp)
-
-if(gazebo_VERSION_MAJOR GREATER 8)
-  QT5_WRAP_CPP(headers_MOC src/score_widget.hh)
-else()
-  QT4_WRAP_CPP(headers_MOC src/score_widget.hh)
-endif()
-
-add_library(score_widget SHARED ${headers_MOC}
-  src/score_widget.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(tmc_gazebo_task_evaluators_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(undesired_contact_detector
-    ${GAZEBO_LIBRARIES}
-    ${POCO_FOUNDATION}
-    ${catkin_LIBRARIES}
-    pthread
-)
-target_link_libraries(reached_region_calculator
-    ${GAZEBO_LIBRARIES}
-    ${catkin_LIBRARIES}
-    pthread
-)
+if(gazebo_FOUND)
+  target_link_libraries(undesired_contact_detector
+      ${GAZEBO_LIBRARIES}
+      ${POCO_FOUNDATION}
+      ${catkin_LIBRARIES}
+      pthread
+  )
+  target_link_libraries(reached_region_calculator
+      ${GAZEBO_LIBRARIES}
+      ${catkin_LIBRARIES}
+      pthread
+  )
+  target_link_libraries(hhcc_tidy_camera_controller
+      ${GAZEBO_LIBRARIES}
+      ${catkin_LIBRARIES}
+      pthread
+  )
+  target_link_libraries(hhcc_move_camera_controller
+      ${GAZEBO_LIBRARIES}
+      ${catkin_LIBRARIES}
+      pthread
+  )
+  target_link_libraries(wrs_camera_controller
+      ${GAZEBO_LIBRARIES}
+      ${catkin_LIBRARIES}
+      pthread
+  )
+  target_link_libraries(score_widget
+      ${GAZEBO_LIBRARIES}
+      ${catkin_LIBRARIES}
+      ${OGRE_LIBRARIES}
+      ${OGRE-Terrain_LIBRARIES}
+      ${QT_LIBRARIES}
+      ${PROTOBUF_LIBRARIES}
+  )
+endif()
+
 target_link_libraries(object_in_box_detector
-    ${GAZEBO_LIBRARIES}
     ${POCO_FOUNDATION}
     ${catkin_LIBRARIES}
     pthread
@@ -199,33 +227,10 @@ target_link_libraries(hhcc_move_task_score_counter
     ${catkin_LIBRARIES}
     pthread
 )
-target_link_libraries(hhcc_tidy_camera_controller
-    ${GAZEBO_LIBRARIES}
-    ${catkin_LIBRARIES}
-    pthread
-)
-target_link_libraries(hhcc_move_camera_controller
-    ${GAZEBO_LIBRARIES}
-    ${catkin_LIBRARIES}
-    pthread
-)
-target_link_libraries(wrs_camera_controller
-    ${GAZEBO_LIBRARIES}
-    ${catkin_LIBRARIES}
-    pthread
-)
 target_link_libraries(wrs_score_counter
     ${POCO_FOUNDATION}
     ${catkin_LIBRARIES}
     pthread
-)
-target_link_libraries(score_widget
-    ${GAZEBO_LIBRARIES}
-    ${catkin_LIBRARIES}
-    ${OGRE_LIBRARIES}
-    ${OGRE-Terrain_LIBRARIES}
-    ${QT_LIBRARIES}
-    ${PROTOBUF_LIBRARIES}
 )
 
 #############
@@ -246,17 +251,24 @@ install(PROGRAMS
 )
 
 ## Mark executables and/or libraries for installation
+if(gazebo_FOUND)
+  install(TARGETS
+    undesired_contact_detector
+    reached_region_calculator
+    hhcc_tidy_camera_controller
+    hhcc_move_camera_controller
+    wrs_camera_controller
+    score_widget
+    # ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+    LIBRARY DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  )
+endif()
 install(TARGETS
-  undesired_contact_detector
-  reached_region_calculator
   object_in_box_detector
   hhcc_score_counter
   hhcc_move_task_score_counter
   wrs_score_counter
-  hhcc_tidy_camera_controller
-  hhcc_move_camera_controller
-  wrs_camera_controller
-  score_widget
   # ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
