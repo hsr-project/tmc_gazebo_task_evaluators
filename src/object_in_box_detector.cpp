@@ -30,6 +30,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 */
+#ifdef ROS1
 #include <ros/ros.h>
 #include <tf/tf.h>
 #include <std_msgs/Int16.h>
@@ -37,6 +38,24 @@ DAMAGE.
 #include <geometry_msgs/Pose.h>
 #include <gazebo_msgs/GetWorldProperties.h>
 #include <gazebo_msgs/GetModelState.h>
+#else
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <tf2/LinearMath/Vector3.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2/convert.h>
+#include <std_msgs/msg/int16.hpp>
+#include <std_msgs/msg/float32.hpp>
+#include <geometry_msgs/msg/pose.hpp>
+#include <gazebo_msgs/srv/get_world_properties.hpp>
+#include <gazebo_msgs/srv/get_model_state.hpp>
+rclcpp::Node::SharedPtr node = nullptr;
+#define ROS_INFO(...) RCLCPP_INFO(node->get_logger(), __VA_ARGS__)
+#define ROS_WARN(...) RCLCPP_WARN(node->get_logger(), __VA_ARGS__)
+#define ROS_ERROR(...) RCLCPP_ERROR(node->get_logger(), __VA_ARGS__)
+#define ROS_DEBUG(...) RCLCPP_DEBUG(node->get_logger(), __VA_ARGS__)
+#endif
 
 #include <iostream>
 #include <unordered_map>
@@ -52,13 +71,13 @@ std::string box_name;
 std::vector<double> box_size;
 std::vector<double> box_pose;
 
-tf::Vector3 object_axes;
-tf::Vector3 target_axes;
+std::vector<double> object_axes;
+std::vector<double> target_axes;
 bool use_object_axes;
 int both_direction;
-double cosine_similarity;
+double allow_degree;
 
-tf::Vector3 target_position;
+std::vector<double> target_position;
 bool use_object_position;
 double max_distance;
 
@@ -66,7 +85,11 @@ std::vector<GlobPtr> glob_filters;
 std::unordered_map<std::string, bool> seen_models;
 std::unordered_map<std::string, bool> target_objects;
 std::vector<std::string> objects_list;
+#ifdef ROS1
 std::unordered_map<std::string, geometry_msgs::Pose> object_pose;
+#else
+std::unordered_map<std::string, geometry_msgs::msg::Pose> object_pose;
+#endif
 
 void check_glob(const std::string &obj)
 {
@@ -84,6 +107,7 @@ void check_glob(const std::string &obj)
 int main(int argc, char **argv)
 {
     // initialize ROS node
+#ifdef ROS1
     ros::init(argc, argv, "object_in_box_detector");
     ros::NodeHandle n("~");
     
@@ -139,7 +163,7 @@ int main(int argc, char **argv)
         }
     }
 
-    double allow_degree = 30;
+    allow_degree = 30;
     if (n.getParam("allow_degree", allow_degree)) {
         ROS_INFO("allow_degree is defined as: %f", allow_degree);
     } else {
@@ -147,7 +171,6 @@ int main(int argc, char **argv)
             ROS_ERROR("Failed to get param 'allow_degree' use default %f", allow_degree);
         }
     }
-    cosine_similarity = allow_degree * 2 * M_PI / 360.0;
     
     if (n.getParam("target_position", tmp)) {
         use_object_position = true;
@@ -191,40 +214,104 @@ int main(int argc, char **argv)
         pub_similarity = n.advertise<std_msgs::Float32>("similarity", 1000);
     }
     ros::Rate rate(1);
-    
+#else
+    rclcpp::init(argc, argv);
+    node = rclcpp::Node::make_shared("object_in_box_detector");
+    auto param_subscriber = std::make_shared<rclcpp::ParameterEventHandler>(node);
+    box_name = node->declare_parameter<std::string>("box_name", "box");
+    box_size = node->declare_parameter<std::vector<double>>("box_size", {1, 1, 1});
+    box_pose = node->declare_parameter<std::vector<double>>("box_pose", {0, 0, 0});
+    target_axes = node->declare_parameter<std::vector<double>>("target_axes", {0, 0, 1});
+    object_axes = node->declare_parameter<std::vector<double>>("object_axes", {0, 0, 1});
+    both_direction = node->declare_parameter<int>("both_direction", 1);
+    allow_degree = node->declare_parameter<double>("allow_degree", 30);
+    target_position = node->declare_parameter<std::vector<double>>("target_position", {0, 0, 0});
+    max_distance = node->declare_parameter<double>("max_distance", 0.2);
+    node->declare_parameter<std::vector<std::string>>("object_names");
+    auto object_names_subscriber = param_subscriber->add_parameter_callback(
+        "object_names",
+        [](const rclcpp::Parameter & p) {
+            auto filter_list = p.as_string_array();
+            for (std::string f : filter_list) {
+                ROS_INFO("target object: %s", f.c_str());
+                GlobPtr g;
+                g.reset(new Poco::Glob(f));
+                glob_filters.push_back(g);
+            }
+        }
+    );
+    auto getWorldProperties = node->create_client<gazebo_msgs::srv::GetWorldProperties>("/gazebo/get_world_properties");
+    auto getModelState = node->create_client<gazebo_msgs::srv::GetModelState>("/gazebo/get_model_state");
+    auto pub = node->create_publisher<std_msgs::msg::Int16>("count", 1000);
+    auto pub_similarity = node->create_publisher<std_msgs::msg::Float32>("similarity", 1000);
+    auto rate = rclcpp::Rate(1);
+#endif
+
     ROS_INFO("enter main loop");
     int prev_count = -1;
+#ifdef ROS1
     while (ros::ok()) {
         getWorldProperties.call(world_properties);
         for (auto name: world_properties.response.model_names) {
+#else
+    while (rclcpp::ok()) {
+        auto world_properties = std::make_shared<gazebo_msgs::srv::GetWorldProperties::Request>();
+        auto result = getWorldProperties->async_send_request(world_properties);
+        rclcpp::spin_until_future_complete(node, result);
+        for (auto name: result.get()->model_names) {
+#endif
             if (seen_models.find(name) == seen_models.end()) {
                 check_glob(name);
                 seen_models[name] = true;
             }
             if (target_objects.find(name) != target_objects.end()) {
+#if ROS1
                 model_state.request.model_name = name;
                 model_state.request.relative_entity_name = box_name;
                 getModelState.call(model_state);
                 object_pose[name] = model_state.response.pose;
+#else
+                auto model_state = std::make_shared<gazebo_msgs::srv::GetModelState::Request>();
+                model_state->model_name = name;
+                model_state->relative_entity_name = box_name;
+                auto result = getModelState->async_send_request(model_state);
+                rclcpp::spin_until_future_complete(node, result);
+                object_pose[name] = result.get()->pose;
+#endif
             }
         }
         int count = 0;
         double similarity = M_PI;
         double distance = 100000.0;
+        double cosine_similarity = allow_degree * 2 * M_PI / 360.0;
         for (auto o: objects_list) {
             auto it2 = object_pose.find(o);
             if (it2 != object_pose.end()) {
+#if ROS1
                 const geometry_msgs::Pose p = it2->second;
+#else
+                const geometry_msgs::msg::Pose p = it2->second;
+#endif
                 // relative pose of the object from the box
                 ROS_DEBUG("%s-rel %f %f %f", o.c_str(), p.position.x, p.position.y, p.position.z);
                 if (use_object_axes) {
+#if ROS1
                     tf::Quaternion q;
                     tf::quaternionMsgToTF(p.orientation, q);
                     auto t = tf::Transform(q, tf::Vector3(0, 0, 0));
-                    auto v = t * object_axes;
+                    auto object_axes_tf = tf::Vector3(object_axes[0], object_axes[1], object_axes[2]);
+                    auto target_axes_tf = tf::Vector3(target_axes[0], target_axes[1], target_axes[2]);
+#else
+                    tf2::Quaternion q;
+                    tf2::fromMsg(p.orientation, q);
+                    auto t = tf2::Transform(q, tf2::Vector3(0, 0, 0));
+                    auto object_axes_tf = tf2::Vector3(object_axes[0], object_axes[1], object_axes[2]);
+                    auto target_axes_tf = tf2::Vector3(target_axes[0], target_axes[1], target_axes[2]);
+#endif
+                    auto v = t * object_axes_tf;
                     v.normalize();
                     // calculate cosine similarity
-                    similarity = target_axes.angle(v);
+                    similarity = target_axes_tf.angle(v);
                     ROS_DEBUG("%s-axes %f %f %f, similarity %f", o.c_str(), v.getX(), v.getY(), v.getZ(), similarity);
                 }
                 // check relative pose of the object is within the bounding box of the box
@@ -243,7 +330,13 @@ int main(int argc, char **argv)
                         }
                     }
                     if (use_object_position) {
-                        distance = target_position.distance(tf::Vector3(p.position.x, p.position.y, p.position.z));
+#if ROS1
+                        auto target_position_tf = tf::Vector3(target_position[0], target_position[1], target_position[2]);
+                        distance = target_position_tf.distance(tf::Vector3(p.position.x, p.position.y, p.position.z));
+#else
+                        auto target_position_tf = tf2::Vector3(target_position[0], target_position[1], target_position[2]);
+                        distance = target_position_tf.distance(tf2::Vector3(p.position.x, p.position.y, p.position.z));
+#endif
                         if (distance <= max_distance) {
                             count++;
                         }
@@ -255,9 +348,15 @@ int main(int argc, char **argv)
             ROS_INFO("object in box: %i", count);
             prev_count = count;
         }
+#ifdef ROS1
         std_msgs::Int16 msg;
         msg.data = count;
         pub.publish(msg);
+#else
+        std_msgs::msg::Int16 msg;
+        msg.data = count;
+        pub->publish(msg);
+#endif
         double total_similarity = 1.0;
         if (use_object_axes) {
             if (similarity <= cosine_similarity) {
@@ -276,12 +375,21 @@ int main(int argc, char **argv)
         if (count == 0) {
             total_similarity = 0.0;
         }
+#ifdef ROS1
         std_msgs::Float32 msg2;
         if (use_object_axes || use_object_position) {
             msg2.data = total_similarity;
             pub_similarity.publish(msg2);
         }
         ros::spinOnce();
+#else
+        std_msgs::msg::Float32 msg2;
+        if (use_object_axes || use_object_position) {
+            msg2.data = total_similarity;
+            pub_similarity->publish(msg2);
+        }
+        rclcpp::spin_some(node);
+#endif
         rate.sleep();
     }
 }

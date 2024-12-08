@@ -30,11 +30,23 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 */
+#ifdef ROS1
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Int16.h>
 #include <std_msgs/Float32.h>
+#else
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/string.hpp>
+#include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/int16.hpp>
+#include <std_msgs/msg/float32.hpp>
+rclcpp::Node::SharedPtr node = nullptr;
+#define ROS_INFO(...) RCLCPP_INFO(node->get_logger(), __VA_ARGS__)
+#define ROS_WARN(...) RCLCPP_WARN(node->get_logger(), __VA_ARGS__)
+#define ROS_ERROR(...) RCLCPP_ERROR(node->get_logger(), __VA_ARGS__)
+#endif
 
 #include <iostream>
 #include <string>
@@ -54,20 +66,35 @@ double clean_score5;
 double clean_score6;
 double clean_score7;
 
+#ifdef ROS1
 ros::Time prev_detect_cb;
+#else
+rclcpp::Time prev_detect_cb;
+#endif
 
+#ifdef ROS1
 void cb_detect(const std_msgs::BoolConstPtr& detect)
 {
     ros::Time now = ros::Time::now();
+    double score = collision_per_second * (now.toSec() - prev_detect_cb.toSec());
+#else
+void cb_detect(const std_msgs::msg::Bool::SharedPtr detect)
+{
+    rclcpp::Time now = node->get_clock()->now();
+    double score = collision_per_second * (now.seconds() - prev_detect_cb.seconds());
+#endif
     if (detect->data) {
-        double score = collision_per_second * (now.toSec() - prev_detect_cb.toSec());
         collision_score += score;
         ROS_WARN("[HHCC] Detect collision!");
     }
     prev_detect_cb = now;
 }
 
+#ifdef ROS1
 void cb_count_block(const std_msgs::Int16Ptr& count)
+#else
+void cb_count_block(const std_msgs::msg::Int16::SharedPtr count)
+#endif
 {
     static double prev_clean_score = 0.0;
     clean_score = per_cleaned_block * (double)count->data;
@@ -77,7 +104,11 @@ void cb_count_block(const std_msgs::Int16Ptr& count)
     }
 }
 
+#ifdef ROS1
 void cb_count_toy(const std_msgs::Int16Ptr& count)
+#else
+void cb_count_toy(const std_msgs::msg::Int16::SharedPtr count)
+#endif
 {
     static double prev_clean_score = 0.0;
     clean_score2 = per_cleaned_toy * (double)count->data;
@@ -87,7 +118,11 @@ void cb_count_toy(const std_msgs::Int16Ptr& count)
     }
 }
 
+#ifdef ROS1
 void cb_count_dish(const std_msgs::Int16Ptr& count)
+#else
+void cb_count_dish(const std_msgs::msg::Int16::SharedPtr count)
+#endif
 {
     static double prev_clean_score = 0.0;
     clean_score3 = per_cleaned_dish * (double)count->data;
@@ -97,7 +132,11 @@ void cb_count_dish(const std_msgs::Int16Ptr& count)
     }
 }
 
+#ifdef ROS1
 void cb_count_teacup(const std_msgs::Int16Ptr& count)
+#else
+void cb_count_teacup(const std_msgs::msg::Int16::SharedPtr count)
+#endif
 {
     static double prev_clean_score = 0.0;
     clean_score4 = per_cleaned_dish * (double)count->data;
@@ -107,7 +146,11 @@ void cb_count_teacup(const std_msgs::Int16Ptr& count)
     }
 }
 
+#ifdef ROS1
 void cb_count_cellphone(const std_msgs::Float32Ptr& count)
+#else
+void cb_count_cellphone(const std_msgs::msg::Float32::SharedPtr count)
+#endif
 {
     static double prev_clean_score = 0.0;
     clean_score5 = per_cleaned_stationary * count->data;
@@ -117,7 +160,11 @@ void cb_count_cellphone(const std_msgs::Float32Ptr& count)
     }
 }
 
+#ifdef ROS1
 void cb_count_remocon(const std_msgs::Float32Ptr& count)
+#else
+void cb_count_remocon(const std_msgs::msg::Float32::SharedPtr count)
+#endif
 {
     static double prev_clean_score = 0.0;
     clean_score6 = per_cleaned_stationary * count->data;
@@ -127,7 +174,11 @@ void cb_count_remocon(const std_msgs::Float32Ptr& count)
     }
 }
 
+#ifdef ROS1
 void cb_count_stapler(const std_msgs::Float32Ptr& count)
+#else
+void cb_count_stapler(const std_msgs::msg::Float32::SharedPtr count)
+#endif
 {
     static double prev_clean_score = 0.0;
     clean_score7 = per_cleaned_stationary * count->data;
@@ -140,6 +191,7 @@ void cb_count_stapler(const std_msgs::Float32Ptr& count)
 int main(int argc, char **argv)
 {
     // initialize ROS node
+#ifdef ROS1
     ros::init(argc, argv, "hhcc_score_counter");
     ros::NodeHandle n("~");
 
@@ -179,9 +231,20 @@ int main(int argc, char **argv)
     }
     
     ros::Time::init();
+#else
+    rclcpp::init(argc, argv);
+    node = rclcpp::Node::make_shared("hhcc_score_counter");
+    per_cleaned_block = node->declare_parameter<double>("per_cleaned_block", 50.0);
+    per_cleaned_toy = node->declare_parameter<double>("per_cleaned_toy", 100.0);
+    per_cleaned_dish = node->declare_parameter<double>("per_cleaned_dish", 250.0);
+    per_cleaned_stationary = node->declare_parameter<double>("per_cleaned_stationary", 500.0);
+    collision_per_second = node->declare_parameter<double>("collision_per_second", -1.0);
+#endif
 
     clean_score = 0.0;
     collision_score = 0.0;
+
+#ifdef ROS1
     prev_detect_cb = ros::Time::now();
 
     ros::Publisher pub = n.advertise<std_msgs::Float32>("/score", 1000);
@@ -195,18 +258,40 @@ int main(int argc, char **argv)
     ros::Subscriber sub6 = n.subscribe("/cellphone_in_wagon_detector/similarity", 1, cb_count_cellphone);
     ros::Subscriber sub7 = n.subscribe("/remocon_in_wagon_detector/similarity", 1, cb_count_remocon);
     ros::Subscriber sub8 = n.subscribe("/stapler_in_wagon_detector/similarity", 1, cb_count_stapler);
+#else
+    prev_detect_cb = node->get_clock()->now();
+
+    auto pub = node->create_publisher<std_msgs::msg::Float32>("/score", 1000);
+    auto pubmsg = node->create_publisher<std_msgs::msg::String>("/message", 1000);
+    auto rate = rclcpp::Rate(10);
+    auto sub = node->create_subscription<std_msgs::msg::Bool>("/undesired_contact_detector/detect", 1, cb_detect);
+    auto sub2 = node->create_subscription<std_msgs::msg::Int16>("/object_in_box_detector/count", 1, cb_count_block);
+    auto sub3 = node->create_subscription<std_msgs::msg::Int16>("/toys_in_trofase_detector/count", 1, cb_count_toy);
+    auto sub4 = node->create_subscription<std_msgs::msg::Int16>("/dishes_in_sink_detector/count", 1, cb_count_dish);
+    auto sub5 = node->create_subscription<std_msgs::msg::Int16>("/teacups_in_sink_detector/count", 1, cb_count_teacup);
+#endif
 
     double prev_score = 0.0;
+#ifdef ROS1
     while (ros::ok()) {
         std_msgs::Float32 msg;
+#else
+    while (rclcpp::ok()) {
+        std_msgs::msg::Float32 msg;
+#endif
         double score = collision_score + clean_score + clean_score2 + clean_score3 + clean_score4 + clean_score5 + clean_score6 + clean_score7;
         if (fabs(score - prev_score) > 0.1) {
             ROS_WARN("[HHCC] Your score has been changed to %i (%+i).", (int)score, (int)(score - prev_score));
-          prev_score = score;
+            prev_score = score;
         }
         msg.data = score;
+#ifdef ROS1
         pub.publish(msg);
         ros::spinOnce();
+#else
+        pub->publish(msg);
+        rclcpp::spin_some(node);
+#endif
         rate.sleep();
     }
 }

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<package>
+<package format="3">
   <name>tmc_gazebo_task_evaluators</name>
   <version>1.0.0</version>
   <description>The tmc_gazebo_task_evaluators package</description>
@@ -10,16 +10,25 @@
 
   <author>Yosuke Matsusaka</author>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend condition="$ROS_VERSION == 2">ament_cmake</buildtool_depend>
+  <buildtool_depend condition="$ROS_VERSION == 1">catkin</buildtool_depend>
   <build_depend>cmake_modules</build_depend>
-  <build_depend>roscpp</build_depend>
+  <build_depend condition="$ROS_VERSION == 1">roscpp</build_depend>
+  <build_depend condition="$ROS_VERSION == 2">rclcpp</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>gazebo_msgs</build_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>rospy</run_depend>
-  <run_depend>gazebo_ros</run_depend>
-  <run_depend>std_msgs</run_depend>
-  <run_depend>gazebo_msgs</run_depend>
-  <run_depend>rosgraph_msgs</run_depend>
+  <exec_depend condition="$ROS_VERSION == 1">roscpp</exec_depend>
+  <exec_depend condition="$ROS_VERSION == 1">rospy</exec_depend>
+  <exec_depend condition="$ROS_VERSION == 2">rclcpp</exec_depend>
+  <exec_depend condition="$ROS_VERSION == 2">rclpy</exec_depend>
+  <exec_depend>gazebo_ros</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>gazebo_msgs</exec_depend>
+  <exec_depend condition="$ROS_VERSION == 1">rosgraph_msgs</exec_depend>
   <test_depend>hsrb_gazebo_launch</test_depend>
+
+  <export>
+    <build_type condition="$ROS_VERSION == 2">ament_cmake</build_type>
+    <build_type condition="$ROS_VERSION == 1">catkin</build_type>
+  </export>
 </package>

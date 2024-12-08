@@ -30,6 +30,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 */
+#if ROS1
 #include <ros/ros.h>
 #include <tf/tf.h>
 #include <std_msgs/String.h>
@@ -39,11 +40,28 @@ DAMAGE.
 #include <geometry_msgs/Pose.h>
 #include <gazebo_msgs/GetWorldProperties.h>
 #include <gazebo_msgs/GetModelState.h>
+#include <boost/bind.hpp>
+#else
+#include <rclcpp/rclcpp.hpp>
+#include <tf2/LinearMath/Vector3.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <std_msgs/msg/string.hpp>
+#include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/int16.hpp>
+#include <std_msgs/msg/float32.hpp>
+#include <geometry_msgs/msg/pose.hpp>
+#include <gazebo_msgs/srv/get_world_properties.hpp>
+#include <gazebo_msgs/srv/get_model_state.hpp>
+rclcpp::Node::SharedPtr node = nullptr;
+#define ROS_INFO(...) RCLCPP_INFO(node->get_logger(), __VA_ARGS__)
+#define ROS_WARN(...) RCLCPP_WARN(node->get_logger(), __VA_ARGS__)
+#define ROS_ERROR(...) RCLCPP_ERROR(node->get_logger(), __VA_ARGS__)
+#define ROS_DEBUG(...) RCLCPP_DEBUG(node->get_logger(), __VA_ARGS__)
+#endif
 
 #include <iostream>
 #include <string>
 #include <map>
-#include <boost/bind.hpp>
 
 #include <Poco/RegularExpression.h>
 
@@ -75,23 +93,42 @@ double overall_time_bonus;
 
 int seed;
 
+#if ROS1
 ros::ServiceClient getWorldProperties;
 ros::ServiceClient getModelState;
 ros::Publisher pubmsg;
-
 ros::Time prev_detect_cb;
+#else
+rclcpp::Client<gazebo_msgs::srv::GetWorldProperties>::SharedPtr getWorldProperties;
+rclcpp::Client<gazebo_msgs::srv::GetModelState>::SharedPtr getModelState;
+rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pubmsg;
+rclcpp::Time prev_detect_cb;
+#endif
 
 void get_objects_in_shelf(std::vector<std::string> &objects)
 {
+    objects.resize(0);
+#if ROS1
     gazebo_msgs::GetWorldProperties world_properties;
     getWorldProperties.call(world_properties);
-    objects.resize(0);
     for (auto name: world_properties.response.model_names) {
         gazebo_msgs::GetModelState model_state;
         model_state.request.model_name = name;
         model_state.request.relative_entity_name = "wrc_bookshelf::link";
         getModelState.call(model_state);
         auto p = model_state.response.pose;
+#else
+    auto world_properties = std::make_shared<gazebo_msgs::srv::GetWorldProperties::Request>();
+    auto result = getWorldProperties->async_send_request(world_properties);
+    rclcpp::spin_until_future_complete(node, result);
+    for (auto name: result.get()->model_names) {
+        auto model_state = std::make_shared<gazebo_msgs::srv::GetModelState::Request>();
+        model_state->model_name = name;
+        model_state->relative_entity_name = "wrc_bookshelf::link";
+        auto result2 = getModelState->async_send_request(model_state);
+        rclcpp::spin_until_future_complete(node, result2);
+        auto p = result2.get()->pose;
+#endif
         if (name != "wrc_bookshelf" && 
             fabs(p.position.x) < 0.8 / 2 &&
             fabs(p.position.y) < 0.28 / 2 ) {
@@ -102,15 +139,28 @@ void get_objects_in_shelf(std::vector<std::string> &objects)
 
 void get_objects_in_humanfront(std::vector<std::string> &objects)
 {
+    objects.resize(0);
+#if ROS1
     gazebo_msgs::GetWorldProperties world_properties;
     getWorldProperties.call(world_properties);
-    objects.resize(0);
     for (auto name: world_properties.response.model_names) {
         gazebo_msgs::GetModelState model_state;
         model_state.request.model_name = name;
         model_state.request.relative_entity_name = "wrc_frame::link";
         getModelState.call(model_state);
         auto p = model_state.response.pose;
+#else
+    auto world_properties = std::make_shared<gazebo_msgs::srv::GetWorldProperties::Request>();
+    auto result = getWorldProperties->async_send_request(world_properties);
+    rclcpp::spin_until_future_complete(node, result);
+    for (auto name: result.get()->model_names) {
+        auto model_state = std::make_shared<gazebo_msgs::srv::GetModelState::Request>();
+        model_state->model_name = name;
+        model_state->relative_entity_name = "wrc_frame::link";
+        auto result2 = getModelState->async_send_request(model_state);
+        rclcpp::spin_until_future_complete(node, result2);
+        auto p = result2.get()->pose;
+#endif
         if (name.find("task2_") == 0 &&
             fabs(p.position.x - 1.5) < 3.0 / 2 &&
             fabs(p.position.y - 1.2) < 1.6 / 2 ) {
@@ -121,15 +171,28 @@ void get_objects_in_humanfront(std::vector<std::string> &objects)
 
 void get_task1_objects_on_tables(std::vector<std::string> &objects)
 {
+    objects.resize(0);
+#if ROS1
     gazebo_msgs::GetWorldProperties world_properties;
     getWorldProperties.call(world_properties);
-    objects.resize(0);
     for (auto name: world_properties.response.model_names) {
         gazebo_msgs::GetModelState model_state;
         model_state.request.model_name = name;
         model_state.request.relative_entity_name = "wrc_frame::link";
         getModelState.call(model_state);
         auto p = model_state.response.pose;
+#else
+    auto world_properties = std::make_shared<gazebo_msgs::srv::GetWorldProperties::Request>();
+    auto result = getWorldProperties->async_send_request(world_properties);
+    rclcpp::spin_until_future_complete(node, result);
+    for (auto name: result.get()->model_names) {
+        auto model_state = std::make_shared<gazebo_msgs::srv::GetModelState::Request>();
+        model_state->model_name = name;
+        model_state->relative_entity_name = "wrc_frame::link";
+        auto result2 = getModelState->async_send_request(model_state);
+        rclcpp::spin_until_future_complete(node, result2);
+        auto p = result2.get()->pose;
+#endif
         if (name.find("task1_") == 0 &&
             fabs(p.position.x + 0.7) < 1.4 / 2 &&
             fabs(p.position.y) < 4.0 / 2 ) {
@@ -138,7 +201,11 @@ void get_task1_objects_on_tables(std::vector<std::string> &objects)
     }
 }
 
+#if ROS1
 void cb_detect(const std_msgs::BoolConstPtr& detect)
+#else
+void cb_detect(const std_msgs::msg::Bool::SharedPtr detect)
+#endif
 {
     static bool first_time = true;
     if (detect->data) {
@@ -198,7 +265,11 @@ void count_task2_score()
     }
 }
 
+#if ROS1
 void cb_hsrb_in_room2(const std_msgs::Int16::ConstPtr& count)
+#else
+void cb_hsrb_in_room2(const std_msgs::msg::Int16::SharedPtr count)
+#endif
 {
     static bool first_time = true;
     if (count->data > 0) {
@@ -210,7 +281,11 @@ void cb_hsrb_in_room2(const std_msgs::Int16::ConstPtr& count)
                 task2a_score = 0.0;
             }
             ROS_WARN("[WRS] Entered room 2!");
+#if ROS1
             task2_start_time = ros::Time::now().toSec();
+#else
+            task2_start_time = node->get_clock()->now().seconds();
+#endif
 
             // calculate time bonus when all the objects are cleaned
             std::vector<std::string> remaining_task1_objects;
@@ -227,15 +302,25 @@ void cb_hsrb_in_room2(const std_msgs::Int16::ConstPtr& count)
             // publish first request
             task2_target = random_object_in_shelf();
             task2_target_person = random_person();
+#if ROS1
             std_msgs::String msg;
             msg.data = task2_target + " to person " + task2_target_person;
             pubmsg.publish(msg);
+#else
+            std_msgs::msg::String msg;
+            msg.data = task2_target + " to person " + task2_target_person;
+            pubmsg->publish(msg);
+#endif
             ROS_WARN("[WRS] Asked to take %s", msg.data.c_str());
         }
     }
 }
 
+#if ROS1
 void cb_hsrb_in_humanfront(const std::string place, const std_msgs::Int16::ConstPtr& count)
+#else
+void cb_hsrb_in_humanfront(const std::string place, const std_msgs::msg::Int16::SharedPtr count)
+#endif
 {
     static int times = 0;
     static std::map<std::string, int> places;
@@ -253,7 +338,11 @@ void cb_hsrb_in_humanfront(const std::string place, const std_msgs::Int16::Const
             // count score
             ROS_WARN("[WRS] Delivered object to human!");
             count_task2_score();
+#if ROS1
             double task2_end_time = ros::Time::now().toSec();
+#else
+            double task2_end_time = node->get_clock()->now().seconds();
+#endif
             double task2_duration = task2_end_time - task2_start_time;
             std::vector<std::string> remaining_task1_objects;
             get_task1_objects_on_tables(remaining_task1_objects);
@@ -276,16 +365,26 @@ void cb_hsrb_in_humanfront(const std::string place, const std_msgs::Int16::Const
                     ROS_WARN("[WRS] No remaining time bonus due to unfinished tasks.");
                 }
             }
+#if ROS1
             std_msgs::String msg;
             msg.data = "done";
             pubmsg.publish(msg);
+#else
+            std_msgs::msg::String msg;
+            msg.data = "done";
+            pubmsg->publish(msg);
+#endif
             ROS_WARN("[WRS] All done!");
         }
     }
     places[place] = count->data;
 }
 
+#if ROS1
 void cb_count_delivery(const std::string place, const std_msgs::Int16::ConstPtr& count)
+#else
+void cb_count_delivery(const std::string place, const std_msgs::msg::Int16::SharedPtr count)
+#endif
 {
     static double prev_delivery_score = 0.0;
     static std::map<std::string, int> places;
@@ -302,7 +401,11 @@ void cb_count_delivery(const std::string place, const std_msgs::Int16::ConstPtr&
     }
 }
 
+#if ROS1
 void cb_count_correct_category(const std::string place, const std_msgs::Int16::ConstPtr& count)
+#else
+void cb_count_correct_category(const std::string place, const std_msgs::msg::Int16::SharedPtr count)
+#endif
 {
     static double prev_category_score = 0.0;
     static std::map<std::string, int> places;
@@ -319,7 +422,11 @@ void cb_count_correct_category(const std::string place, const std_msgs::Int16::C
     }
 }
 
+#if ROS1
 void cb_count_draweropen(const std_msgs::Int16::ConstPtr& count)
+#else
+void cb_count_draweropen(const std_msgs::msg::Int16::SharedPtr count)
+#endif
 {
     static double prev_draweropen_score = 0.0;
 
@@ -335,6 +442,7 @@ void cb_count_draweropen(const std_msgs::Int16::ConstPtr& count)
 int main(int argc, char **argv)
 {
     // initialize ROS node
+#if ROS1
     ros::init(argc, argv, "wrc_score_counter");
     ros::NodeHandle n("~");
 
@@ -358,9 +466,17 @@ int main(int argc, char **argv)
         seed = 0;
         ROS_INFO("Failed to get param 'seed' use default '%i'", seed);
     }
+#else
+    rclcpp::init(argc, argv);
+    node = rclcpp::Node::make_shared("wrc_score_counter");
+    task1_per_delivery = node->declare_parameter<double>("task1_per_delivery", 10.0);
+    task1_per_correct_category = node->declare_parameter<double>("task1_per_correct_category", 10.0);
+    seed = node->declare_parameter<int>("seed", 0);
+#endif
 
     srand(seed);
 
+#if ROS1
     ros::service::waitForService("/gazebo/get_world_properties");
     getWorldProperties = n.serviceClient<gazebo_msgs::GetWorldProperties>("/gazebo/get_world_properties");
 
@@ -411,6 +527,94 @@ int main(int argc, char **argv)
     ros::Subscriber sub_hsrb_in_room2 = n.subscribe<std_msgs::Int16>("/hsrb_in_room2_detector/count", 1, cb_hsrb_in_room2);
     ros::Subscriber sub_hsrb_in_humanleftfront = n.subscribe<std_msgs::Int16>("/hsrb_in_humanleftfront_detector/count", 1, boost::bind(&cb_hsrb_in_humanfront, "left", _1));
     ros::Subscriber sub_hsrb_in_humanrightfront = n.subscribe<std_msgs::Int16>("/hsrb_in_humanrightfront_detector/count", 1, boost::bind(&cb_hsrb_in_humanfront, "right", _1));
+#else
+    getWorldProperties = node->create_client<gazebo_msgs::srv::GetWorldProperties>("/gazebo/get_world_properties");
+    getModelState = node->create_client<gazebo_msgs::srv::GetModelState>("/gazebo/get_model_state");
+    prev_detect_cb = rclcpp::Clock().now();
+    auto pub = node->create_publisher<std_msgs::msg::Float32>("/score", 1000);
+    pubmsg = node->create_publisher<std_msgs::msg::String>("/message", 1000);
+    auto rate = rclcpp::Rate(10);
+
+    auto sub_drawerleft_any = node->create_subscription<std_msgs::msg::Int16>("/any_in_drawerleft_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_delivery("drawerleft", count);
+    });
+    auto sub_drawerleft_cat = node->create_subscription<std_msgs::msg::Int16>("/shapeitems_in_drawerleft_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("drawerleft", count);
+    });
+
+    auto sub_drawertop_any = node->create_subscription<std_msgs::msg::Int16>("/any_in_drawertop_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_delivery("drawertop", count);
+    });
+    auto sub_drawertop_cat = node->create_subscription<std_msgs::msg::Int16>("/tools_in_drawertop_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("drawertop", count);
+    });
+
+    auto sub_drawerbottom_any = node->create_subscription<std_msgs::msg::Int16>("/any_in_drawerbottom_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_delivery("drawerbottom", count);
+    });
+    auto sub_drawerbottom_cat = node->create_subscription<std_msgs::msg::Int16>("/tools_in_drawerbottom_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("drawerbottom", count);
+    });
+
+    auto sub_drawer_open = node->create_subscription<std_msgs::msg::Int16>("/drawer_in_drawerfront_detector/count", 1, cb_count_draweropen);
+
+    auto sub_containera_any = node->create_subscription<std_msgs::msg::Int16>("/any_in_containera_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_delivery("containera", count);
+    });
+    auto sub_containera_cat = node->create_subscription<std_msgs::msg::Int16>("/kitchenitems_in_containera_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("containera", count);
+    });
+
+    auto sub_containerb_any = node->create_subscription<std_msgs::msg::Int16>("/any_in_containerb_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_delivery("containerb", count);
+    });
+    auto sub_containerb_largemarker = node->create_subscription<std_msgs::msg::Int16>("/largemarker_in_containerb_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("containerb_largemarker", count);
+    });
+    auto sub_containerb_fork = node->create_subscription<std_msgs::msg::Int16>("/fork_in_containerb_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("containerb_fork", count);
+    });
+    auto sub_containerb_spoon = node->create_subscription<std_msgs::msg::Int16>("/spoon_in_containerb_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("containerb_spoon", count);
+    });
+
+    auto sub_traya_any = node->create_subscription<std_msgs::msg::Int16>("/any_in_traya_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_delivery("traya", count);
+    });
+    auto sub_traya_cat = node->create_subscription<std_msgs::msg::Int16>("/foods_in_traya_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("traya", count);
+    });
+
+    auto sub_trayb_any = node->create_subscription<std_msgs::msg::Int16>("/any_in_trayb_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_delivery("trayb", count);
+    });
+    auto sub_trayb_cat = node->create_subscription<std_msgs::msg::Int16>("/foods_in_trayb_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("trayb", count);
+    });
+
+    auto sub_bina_any = node->create_subscription<std_msgs::msg::Int16>("/any_in_bina_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_delivery("bina", count);
+    });
+    auto sub_bina_cat = node->create_subscription<std_msgs::msg::Int16>("/taskitems_in_bina_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("bina", count);
+    });
+
+    auto sub_binb_any = node->create_subscription<std_msgs::msg::Int16>("/any_in_binb_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_delivery("binb", count);
+    });
+    auto sub_binb_cat = node->create_subscription<std_msgs::msg::Int16>("/taskitems_in_binb_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_count_correct_category("binb", count);
+    });
+
+    auto sub_undesired_contact = node->create_subscription<std_msgs::msg::Bool>("/undesired_contact_detector/detect", 1, cb_detect);
+    auto sub_hsrb_in_room2 = node->create_subscription<std_msgs::msg::Int16>("/hsrb_in_room2_detector/count", 1, cb_hsrb_in_room2);
+    auto sub_hsrb_in_humanleftfront = node->create_subscription<std_msgs::msg::Int16>("/hsrb_in_humanleftfront_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_hsrb_in_humanfront("left", count);
+    });
+    auto sub_hsrb_in_humanrightfront = node->create_subscription<std_msgs::msg::Int16>("/hsrb_in_humanrightfront_detector/count", 1, [](std_msgs::msg::Int16::SharedPtr count) {
+        cb_hsrb_in_humanfront("right", count);
+    });
+#endif
 
     task1_delivery_score = 0.0;
     task1_category_score = 0.0;
@@ -425,16 +629,26 @@ int main(int argc, char **argv)
     task1_start_time = 0.0;
 
     double prev_score = 0.0;
+#ifdef ROS1
     while (ros::ok()) {
         std_msgs::Float32 msg;
+#else
+    while (rclcpp::ok()) {
+        std_msgs::msg::Float32 msg;
+#endif
         double score = task1_delivery_score + task1_category_score + task1_time_bonus + task1_draweropen_bonus + task2a_score + task2_score + task2_time_bonus + overall_time_bonus;
         if (fabs(score - prev_score) > 0.1) {
             ROS_WARN("[WRS] Your score has been changed to %i (%+i).", (int)score, (int)(score - prev_score));
             prev_score = score;
         }
         msg.data = score;
+#ifdef ROS1
         pub.publish(msg);
         ros::spinOnce();
+#else
+        pub->publish(msg);
+        rclcpp::spin_some(node);
+#endif
         rate.sleep();
     }
 }

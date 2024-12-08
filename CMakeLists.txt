@@ -1,10 +1,23 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(tmc_gazebo_task_evaluators)
+
+set(ROS1 FALSE)
+if(DEFINED ENV{ROS_DISTRO})
+  if($ENV{ROS_DISTRO} STREQUAL "noetic")
+    set(ROS1 TRUE)
+  endif()
+  if($ENV{ROS_DISTRO} STREQUAL "melodic")
+    set(ROS1 TRUE)
+  endif()
+endif()
+
+if(ROS1)
+  add_compile_options(-DROS1=1)
+endif()
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp gazebo_msgs)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -122,25 +135,34 @@ include_directories(${EIGEN3_INCLUDE_DIRS})
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES score_widget
-  CATKIN_DEPENDS roscpp gazebo_msgs
-  #  DEPENDS system_lib
-  #DEPENDS Eigen3
-)
+if(ROS1)
+  find_package(catkin REQUIRED COMPONENTS roscpp std_msgs gazebo_msgs)
+  catkin_package(
+  #  INCLUDE_DIRS include
+  #  LIBRARIES score_widget
+    CATKIN_DEPENDS roscpp std_msgs gazebo_msgs
+    #  DEPENDS system_lib
+    #DEPENDS Eigen3
+  )
+  include_directories(include ${catkin_INCLUDE_DIRS})
+  add_subdirectory(env-hooks)
+else()
+  find_package(ament_cmake REQUIRED)
+  find_package(rclcpp REQUIRED)
+  find_package(tf2 REQUIRED)
+  find_package(tf2_geometry_msgs REQUIRED)
+  find_package(std_msgs REQUIRED)
+  find_package(gazebo_msgs REQUIRED)
+  ament_package()
+endif()
 
 ###########
 ## Build ##
 ###########
 
-add_subdirectory(env-hooks)
-
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
-
-include_directories(include ${catkin_INCLUDE_DIRS})
 
 ## Declare a C++ library
 # add_library(tmc_gazebo_task_evaluators
@@ -214,25 +236,56 @@ if(gazebo_FOUND)
   )
 endif()
 
-target_link_libraries(object_in_box_detector
-    ${POCO_FOUNDATION}
-    ${catkin_LIBRARIES}
-    pthread
-)
-target_link_libraries(hhcc_score_counter
-    ${catkin_LIBRARIES}
-    pthread
-)
-target_link_libraries(hhcc_move_task_score_counter
-    ${catkin_LIBRARIES}
-    pthread
-)
-target_link_libraries(wrs_score_counter
-    ${POCO_FOUNDATION}
-    ${catkin_LIBRARIES}
-    pthread
-)
-
+if(ROS1)
+  target_link_libraries(object_in_box_detector
+      ${POCO_FOUNDATION}
+      ${catkin_LIBRARIES}
+      pthread
+  )
+  target_link_libraries(hhcc_score_counter
+      ${catkin_LIBRARIES}
+      pthread
+  )
+  target_link_libraries(hhcc_move_task_score_counter
+      ${catkin_LIBRARIES}
+      pthread
+  )
+  target_link_libraries(wrs_score_counter
+      ${POCO_FOUNDATION}
+      ${catkin_LIBRARIES}
+      pthread
+  )
+else()
+  ament_target_dependencies(object_in_box_detector
+    rclcpp
+    tf2
+    std_msgs
+    tf2_geometry_msgs
+    gazebo_msgs
+  )
+  target_link_libraries(object_in_box_detector
+      ${POCO_FOUNDATION}
+  )
+  ament_target_dependencies(hhcc_score_counter
+    rclcpp
+    std_msgs
+    gazebo_msgs
+  )
+  ament_target_dependencies(hhcc_move_task_score_counter
+    rclcpp
+    std_msgs
+    gazebo_msgs
+  )
+  ament_target_dependencies(wrs_score_counter
+    rclcpp
+    tf2
+    std_msgs
+    gazebo_msgs
+  )
+  target_link_libraries(wrs_score_counter
+      ${POCO_FOUNDATION}
+  )
+endif()
 #############
 ## Install ##
 #############
@@ -301,9 +354,11 @@ install(DIRECTORY
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-if(CATKIN_ENABLE_TESTING)
-  find_package(rostest REQUIRED)
-  add_rostest(tests/no-block-in-the-box.test)
-  add_rostest(tests/one-block-in-the-box.test)
-  add_rostest(tests/two-block-in-the-box.test)
+if(ROS1)
+  if(CATKIN_ENABLE_TESTING)
+    find_package(rostest REQUIRED)
+    add_rostest(tests/no-block-in-the-box.test)
+    add_rostest(tests/one-block-in-the-box.test)
+    add_rostest(tests/two-block-in-the-box.test)
+  endif()
 endif()
