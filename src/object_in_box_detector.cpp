@@ -40,6 +40,7 @@ DAMAGE.
 #include <gazebo_msgs/GetModelState.h>
 #else
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/qos.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2/LinearMath/Vector3.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -50,6 +51,8 @@ DAMAGE.
 #include <geometry_msgs/msg/pose.hpp>
 #include <gazebo_msgs/srv/get_world_properties.hpp>
 #include <gazebo_msgs/srv/get_model_state.hpp>
+#include <chrono>
+using namespace std::chrono_literals;
 rclcpp::Node::SharedPtr node = nullptr;
 #define ROS_INFO(...) RCLCPP_INFO(node->get_logger(), __VA_ARGS__)
 #define ROS_WARN(...) RCLCPP_WARN(node->get_logger(), __VA_ARGS__)
@@ -68,23 +71,23 @@ rclcpp::Node::SharedPtr node = nullptr;
 typedef std::shared_ptr<Poco::Glob> GlobPtr;
 
 std::string box_name;
-std::vector<double> box_size;
-std::vector<double> box_pose;
+std::vector<double> box_size(3);
+std::vector<double> box_pose(3);
 
-std::vector<double> object_axes;
-std::vector<double> target_axes;
+std::vector<double> object_axes(3);
+std::vector<double> target_axes(3);
 bool use_object_axes;
 int both_direction;
 double allow_degree;
 
-std::vector<double> target_position;
+std::vector<double> target_position(3);
 bool use_object_position;
 double max_distance;
 
-std::vector<GlobPtr> glob_filters;
+std::list<GlobPtr> glob_filters;
 std::unordered_map<std::string, bool> seen_models;
 std::unordered_map<std::string, bool> target_objects;
-std::vector<std::string> objects_list;
+std::list<std::string> objects_list;
 #ifdef ROS1
 std::unordered_map<std::string, geometry_msgs::Pose> object_pose;
 #else
@@ -190,7 +193,7 @@ int main(int argc, char **argv)
         }
     }
 
-    std::vector<std::string> filter_list;
+    std::list<std::string> filter_list;
     if (n.getParam("object_names", filter_list)) {
         for (std::string f : filter_list) {
             ROS_INFO("target object: %s", f.c_str());
@@ -227,7 +230,7 @@ int main(int argc, char **argv)
     allow_degree = node->declare_parameter<double>("allow_degree", 30);
     target_position = node->declare_parameter<std::vector<double>>("target_position", {0, 0, 0});
     max_distance = node->declare_parameter<double>("max_distance", 0.2);
-    node->declare_parameter<std::vector<std::string>>("object_names");
+    auto object_names = node->declare_parameter<std::vector<std::string>>("object_names");
     auto object_names_subscriber = param_subscriber->add_parameter_callback(
         "object_names",
         [](const rclcpp::Parameter & p) {
@@ -240,11 +243,18 @@ int main(int argc, char **argv)
             }
         }
     );
-    auto getWorldProperties = node->create_client<gazebo_msgs::srv::GetWorldProperties>("/gazebo/get_world_properties");
-    auto getModelState = node->create_client<gazebo_msgs::srv::GetModelState>("/gazebo/get_model_state");
+    auto getWorldProperties = node->create_client<gazebo_msgs::srv::GetWorldProperties>("/gazebo/get_world_properties", rclcpp::ServicesQoS().get_rmw_qos_profile());
+    auto getModelState = node->create_client<gazebo_msgs::srv::GetModelState>("/gazebo/get_model_state", rclcpp::ServicesQoS().get_rmw_qos_profile());
     auto pub = node->create_publisher<std_msgs::msg::Int16>("count", 1000);
     auto pub_similarity = node->create_publisher<std_msgs::msg::Float32>("similarity", 1000);
     auto rate = rclcpp::Rate(1);
+    while (!getWorldProperties->wait_for_service(1s) || !getModelState->wait_for_service(1s)) {
+        if (!rclcpp::ok()) {
+            ROS_ERROR("Interrupted while waiting for the service. Exiting.");
+            return 0;
+        }
+        // ROS_INFO("service not available, waiting again...");
+    }
 #endif
 
     ROS_INFO("enter main loop");
@@ -255,10 +265,16 @@ int main(int argc, char **argv)
         for (auto name: world_properties.response.model_names) {
 #else
     while (rclcpp::ok()) {
+        if (glob_filters.size() == 0) {
+            rclcpp::spin_some(node);
+            rate.sleep();
+            continue;
+        }
         auto world_properties = std::make_shared<gazebo_msgs::srv::GetWorldProperties::Request>();
         auto result = getWorldProperties->async_send_request(world_properties);
         rclcpp::spin_until_future_complete(node, result);
-        for (auto name: result.get()->model_names) {
+        auto model_names = result.get()->model_names;
+        for (auto name: model_names) {
 #endif
             if (seen_models.find(name) == seen_models.end()) {
                 check_glob(name);
@@ -274,9 +290,9 @@ int main(int argc, char **argv)
                 auto model_state = std::make_shared<gazebo_msgs::srv::GetModelState::Request>();
                 model_state->model_name = name;
                 model_state->relative_entity_name = box_name;
-                auto result = getModelState->async_send_request(model_state);
-                rclcpp::spin_until_future_complete(node, result);
-                object_pose[name] = result.get()->pose;
+                auto result2 = getModelState->async_send_request(model_state);
+                rclcpp::spin_until_future_complete(node, result2);
+                object_pose[name] = result2.get()->pose;
 #endif
             }
         }
