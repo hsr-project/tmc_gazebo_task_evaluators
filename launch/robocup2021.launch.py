@@ -36,7 +36,7 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     # Declare launch arguments
-    robot_name = LaunchConfiguration('robot_name', default=EnvironmentVariable('ROBOT_NAME', default_value='hsrb'))
+    #robot_name = LaunchConfiguration('robot_name', default=EnvironmentVariable('ROBOT_NAME', default_value='hsrb'))
     camera_controller = LaunchConfiguration('camera_controller', default='false')
     seed = LaunchConfiguration('seed', default='1')
 
@@ -76,14 +76,14 @@ def generate_launch_description():
             'any_in_drawerleft_detector',
             'trofast_1::link',
             [0.35, 0.21, 0.25],
-            [0, 0, 0.125],
+            [0.0, 0.0, 0.125],
             ['task1_*']
         ),
         create_object_detector(
             'shapeitems_in_drawerleft_detector',
             'trofast_1::link',
             [0.35, 0.21, 0.25],
-            [0, 0, 0.125],
+            [0.0, 0.0, 0.125],
             ['task1_shapeitem_*']
         ),
 
@@ -92,14 +92,14 @@ def generate_launch_description():
             'any_in_drawertop_detector',
             'trofast_2::link',
             [0.35, 0.21, 0.25],
-            [0, 0, 0.125],
+            [0.0, 0.0, 0.125],
             ['task1_*']
         ),
         create_object_detector(
             'tools_in_drawertop_detector',
             'trofast_2::link',
             [0.35, 0.21, 0.25],
-            [0, 0, 0.125],
+            [0.0, 0.0, 0.125],
             ['task1_tool_*']
         ),
 
@@ -108,14 +108,14 @@ def generate_launch_description():
             'any_in_drawerbottom_detector',
             'trofast_3::link',
             [0.35, 0.21, 0.25],
-            [0, 0, 0.125],
+            [0.0, 0.0, 0.125],
             ['task1_*']
         ),
         create_object_detector(
             'tools_in_drawerbottom_detector',
             'trofast_3::link',
             [0.35, 0.21, 0.25],
-            [0, 0, 0.125],
+            [0.0, 0.0, 0.125],
             ['task1_tool_*']
         ),
 
@@ -123,8 +123,8 @@ def generate_launch_description():
         create_object_detector(
             'drawer_in_drawerfront_detector',
             'wrc_stair_like_drawer::link',
-            [0.5, 1, 1.5],
-            [0.5, 0, 0],
+            [0.5, 1.0, 1.5],
+            [0.5, 0.0, 0.0],
             ['trofast_*']
         ),
 
@@ -133,14 +133,14 @@ def generate_launch_description():
             'any_in_containera_detector',
             'wrc_container_b::link',
             [0.18, 0.26, 0.11],
-            [0, 0, 0.055],
+            [0.0, 0.0, 0.055],
             ['task1_*']
         ),
         create_object_detector(
             'kitchenitems_in_containera_detector',
             'wrc_container_b::link',
             [0.18, 0.26, 0.11],
-            [0, 0, 0.055],
+            [0.0, 0.0, 0.055],
             ['task1_kitchenitem_*']
         ),
 
@@ -149,40 +149,40 @@ def generate_launch_description():
             'any_in_containerb_detector',
             'wrc_container_a::link',
             [0.12, 0.12, 0.2],
-            [0, 0, 0.1],
+            [0.0, 0.0, 0.1],
             ['task1_*']
         ),
         create_object_detector(
             'largemarker_in_containerb_detector',
             'wrc_container_a::link',
             [0.12, 0.12, 0.2],
-            [0, 0, 0.1],
+            [0.0, 0.0, 0.1],
             ['task1_tool_ycb_040_large_marker_*'],
-            [0, 1, 0],
-            [0, 0, -1],
-            45,
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, -1.0],
+            45.0,
             0
         ),
         create_object_detector(
             'fork_in_containerb_detector',
             'wrc_container_a::link',
             [0.12, 0.12, 0.2],
-            [0, 0, 0.1],
+            [0.0, 0.0, 0.1],
             ['task1_kitchenitem_ycb_030_fork_*'],
-            [1, 0, 0],
-            [0, 0, 1],
-            45,
+            [1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0],
+            45.0,
             0
         ),
         create_object_detector(
             'spoon_in_containerb_detector',
             'wrc_container_a::link',
             [0.12, 0.12, 0.2],
-            [0, 0, 0.1],
+            [0.0, 0.0, 0.1],
             ['task1_kitchenitem_ycb_031_spoon_*'],
-            [1, 0, 0],
-            [0, 0, 1],
-            45,
+            [1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0],
+            45.0,
             0
         ),
 
@@ -191,14 +191,14 @@ def generate_launch_description():
             'any_in_traya_detector',
             'wrc_tray_1::link',
             [0.285, 0.37, 0.2],
-            [0, 0, 0.1],
+            [0.0, 0.0, 0.1],
             ['task1_*']
         ),
         create_object_detector(
             'foods_in_traya_detector',
             'wrc_tray_1::link',
             [0.285, 0.37, 0.2],
-            [0, 0, 0.1],
+            [0.0, 0.0, 0.1],
             ['task1_food_*']
         ),
 
@@ -207,14 +207,14 @@ def generate_launch_description():
             'any_in_trayb_detector',
             'wrc_tray_2::link',
             [0.285, 0.37, 0.2],
-            [0, 0, 0.1],
+            [0.0, 0.0, 0.1],
             ['task1_*']
         ),
         create_object_detector(
             'foods_in_trayb_detector',
             'wrc_tray_2::link',
             [0.285, 0.37, 0.2],
-            [0, 0, 0.1],
+            [0.0, 0.0, 0.1],
             ['task1_food_*']
         ),
 
@@ -223,14 +223,14 @@ def generate_launch_description():
             'any_in_bina_detector',
             'wrc_bin_green::link',
             [0.33, 0.38, 0.33],
-            [0, 0, 0.165],
+            [0.0, 0.0, 0.165],
             ['task1_*']
         ),
         create_object_detector(
             'taskitems_in_bina_detector',
             'wrc_bin_green::link',
             [0.33, 0.38, 0.33],
-            [0, 0, 0.165],
+            [0.0, 0.0, 0.165],
             ['task1_taskitem_*']
         ),
 
@@ -239,14 +239,14 @@ def generate_launch_description():
             'any_in_binb_detector',
             'wrc_bin_black::link',
             [0.33, 0.38, 0.33],
-            [0, 0, 0.165],
+            [0.0, 0.0, 0.165],
             ['task1_*']
         ),
         create_object_detector(
             'taskitems_in_binb_detector',
             'wrc_bin_black::link',
             [0.33, 0.38, 0.33],
-            [0, 0, 0.165],
+            [0.0, 0.0, 0.165],
             ['task1_taskitem_*']
         ),
 
@@ -254,40 +254,40 @@ def generate_launch_description():
         create_object_detector(
             'hsrb_in_room2_detector',
             'wrc_frame::link',
-            [3, 4, 3],
-            [1.5, 0, 1],
-            [robot_name]
+            [3.0, 4.0, 3.0],
+            [1.5, 0.0, 1.0],
+            ['hsrb']
         ),
 
         # Human Left Front detector
         create_object_detector(
             'hsrb_in_humanleftfront_detector',
             'person_standing::link',
-            [1.2, 1.6, 3],
-            [0, -0.5, 1],
-            [robot_name]
+            [1.2, 1.6, 3.0],
+            [0.0, -0.5, 1.0],
+            ['hsrb']
         ),
 
         # Human Right Front detector
         create_object_detector(
             'hsrb_in_humanrightfront_detector',
             'person_standing_0::link',
-            [1.2, 1.6, 3],
-            [0, -0.5, 1],
-            [robot_name]
+            [1.2, 1.6, 3.0],
+            [0.0, -0.5, 1.0],
+            ['hsrb']
         ),
 
         # Undesired contact detector
-        Node(
-            package='tmc_gazebo_task_evaluators',
-            executable='undesired_contact_detector',
-            name='undesired_contact_detector',
-            output='screen',
-            parameters=[{
-                'target_model_name': robot_name,
-                'except_model_names': ['wrc_ground_plane', 'wrc_tray_*', 'wrc_container_*', 'trofast_*', 'task1_*', 'wrc_bookshelf', 'task2_*']
-            }]
-        ),
+        #Node(
+        #    package='tmc_gazebo_task_evaluators',
+        #    executable='undesired_contact_detector',
+        #    name='undesired_contact_detector',
+        #    output='screen',
+        #    parameters=[{
+        #        'target_model_name': robot_name,
+        #        'except_model_names': ['wrc_ground_plane', 'wrc_tray_*', 'wrc_container_*', 'trofast_*', 'task1_*', 'wrc_bookshelf', 'task2_*']
+        #    }]
+        #),
 
         # WRS score counter
         Node(
