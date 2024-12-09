@@ -293,53 +293,87 @@ endif()
 # all install targets should use catkin DESTINATION variables
 # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
 
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
-install(PROGRAMS
-  scripts/setup_score_widget
-  scripts/wait_for
-  scripts/record_gazebo_stat
-  scripts/count_objects_test
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+if(ROS1)
+  ## Mark executable scripts (Python etc.) for installation
+  ## in contrast to setup.py, you can choose the destination
+  install(PROGRAMS
+    scripts/setup_score_widget
+    scripts/wait_for
+    scripts/record_gazebo_stat
+    scripts/count_objects_test
+    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  )
 
-## Mark executables and/or libraries for installation
-if(gazebo_FOUND)
+  ## Mark executables and/or libraries for installation
+  if(gazebo_FOUND)
+    install(TARGETS
+      undesired_contact_detector
+      reached_region_calculator
+      hhcc_tidy_camera_controller
+      hhcc_move_camera_controller
+      wrs_camera_controller
+      score_widget
+      # ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      LIBRARY DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+      RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
+  endif()
   install(TARGETS
-    undesired_contact_detector
-    reached_region_calculator
-    hhcc_tidy_camera_controller
-    hhcc_move_camera_controller
-    wrs_camera_controller
-    score_widget
+    object_in_box_detector
+    hhcc_score_counter
+    hhcc_move_task_score_counter
+    wrs_score_counter
     # ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   )
+
+  ## Mark cpp header files for installation
+  # install(DIRECTORY include/${PROJECT_NAME}/
+  #   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  #   FILES_MATCHING PATTERN "*.h"
+  #   PATTERN ".svn" EXCLUDE
+  # )
+
+  ## Mark other files for installation (e.g. launch and bag files, etc.)
+  install(DIRECTORY
+    launch
+    tests
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )
+else()
+  install(PROGRAMS
+    scripts/setup_score_widget
+    scripts/wait_for
+    scripts/record_gazebo_stat
+    scripts/count_objects_test
+    DESTINATION lib/${PROJECT_NAME}
+  )
+  if(gazebo_FOUND)
+    install(TARGETS
+      undesired_contact_detector
+      reached_region_calculator
+      hhcc_tidy_camera_controller
+      hhcc_move_camera_controller
+      wrs_camera_controller
+      score_widget
+      DESTINATION lib/${PROJECT_NAME}
+    )
+  endif()
+  install(TARGETS
+    object_in_box_detector
+    hhcc_score_counter
+    hhcc_move_task_score_counter
+    wrs_score_counter
+    DESTINATION lib/${PROJECT_NAME}
+  )
+
+  install(DIRECTORY
+    launch
+    tests
+    DESTINATION share/${PROJECT_NAME}
+  )
 endif()
-install(TARGETS
-  object_in_box_detector
-  hhcc_score_counter
-  hhcc_move_task_score_counter
-  wrs_score_counter
-  # ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
-
-## Mark other files for installation (e.g. launch and bag files, etc.)
-install(DIRECTORY
-  launch
-  tests
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
 
 #############
 ## Testing ##
