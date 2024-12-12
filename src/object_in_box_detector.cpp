@@ -245,8 +245,8 @@ int main(int argc, char **argv)
     );
     auto getWorldProperties = node->create_client<gazebo_msgs::srv::GetWorldProperties>("/gazebo/get_world_properties", rclcpp::ServicesQoS().get_rmw_qos_profile());
     auto getModelState = node->create_client<gazebo_msgs::srv::GetModelState>("/gazebo/get_model_state", rclcpp::ServicesQoS().get_rmw_qos_profile());
-    auto pub = node->create_publisher<std_msgs::msg::Int16>("count", 1000);
-    auto pub_similarity = node->create_publisher<std_msgs::msg::Float32>("similarity", 1000);
+    auto pub = node->create_publisher<std_msgs::msg::Int16>("~/count", 1000);
+    auto pub_similarity = node->create_publisher<std_msgs::msg::Float32>("~/similarity", 1000);
     auto rate = rclcpp::Rate(1);
     while (!getWorldProperties->wait_for_service(1s) || !getModelState->wait_for_service(1s)) {
         if (!rclcpp::ok()) {
