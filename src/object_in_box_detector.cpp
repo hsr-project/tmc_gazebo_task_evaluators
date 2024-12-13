@@ -220,7 +220,6 @@ int main(int argc, char **argv)
 #else
     rclcpp::init(argc, argv);
     node = rclcpp::Node::make_shared("object_in_box_detector");
-    auto param_subscriber = std::make_shared<rclcpp::ParameterEventHandler>(node);
     box_name = node->declare_parameter<std::string>("box_name", "box");
     box_size = node->declare_parameter<std::vector<double>>("box_size", {1, 1, 1});
     box_pose = node->declare_parameter<std::vector<double>>("box_pose", {0, 0, 0});
@@ -231,18 +230,6 @@ int main(int argc, char **argv)
     target_position = node->declare_parameter<std::vector<double>>("target_position", {0, 0, 0});
     max_distance = node->declare_parameter<double>("max_distance", 0.2);
     auto object_names = node->declare_parameter<std::vector<std::string>>("object_names");
-    auto object_names_subscriber = param_subscriber->add_parameter_callback(
-        "object_names",
-        [](const rclcpp::Parameter & p) {
-            auto filter_list = p.as_string_array();
-            for (std::string f : filter_list) {
-                ROS_INFO("target object: %s", f.c_str());
-                GlobPtr g;
-                g.reset(new Poco::Glob(f));
-                glob_filters.push_back(g);
-            }
-        }
-    );
     auto getWorldProperties = node->create_client<gazebo_msgs::srv::GetWorldProperties>("/gazebo/get_world_properties", rclcpp::ServicesQoS().get_rmw_qos_profile());
     auto getModelState = node->create_client<gazebo_msgs::srv::GetModelState>("/gazebo/get_model_state", rclcpp::ServicesQoS().get_rmw_qos_profile());
     auto pub = node->create_publisher<std_msgs::msg::Int16>("~/count", 1000);
@@ -255,6 +242,20 @@ int main(int argc, char **argv)
         }
         // ROS_INFO("service not available, waiting again...");
     }
+    while (object_names.empty()) {
+        if (!rclcpp::ok()) {
+            ROS_ERROR("Interrupted while waiting for the configuration parameter. Exiting.");
+            return 0;
+        }
+        rclcpp::spin_some(node);
+        rate.sleep();
+    }
+    for (std::string f : object_names) {
+        ROS_INFO("target object: %s", f.c_str());
+        GlobPtr g;
+        g.reset(new Poco::Glob(f));
+        glob_filters.push_back(g);
+    }
 #endif
 
     ROS_INFO("enter main loop");
@@ -265,14 +266,12 @@ int main(int argc, char **argv)
         for (auto name: world_properties.response.model_names) {
 #else
     while (rclcpp::ok()) {
-        if (glob_filters.size() == 0) {
-            rclcpp::spin_some(node);
-            rate.sleep();
-            continue;
-        }
         auto world_properties = std::make_shared<gazebo_msgs::srv::GetWorldProperties::Request>();
         auto result = getWorldProperties->async_send_request(world_properties);
-        rclcpp::spin_until_future_complete(node, result);
+        if (rclcpp::spin_until_future_complete(node, result, 2s) != rclcpp::FutureReturnCode::SUCCESS) {
+            ROS_WARN("Failed to get world properties");
+            continue;
+        }
         auto model_names = result.get()->model_names;
         for (auto name: model_names) {
 #endif
@@ -291,7 +290,10 @@ int main(int argc, char **argv)
                 model_state->model_name = name;
                 model_state->relative_entity_name = box_name;
                 auto result2 = getModelState->async_send_request(model_state);
-                rclcpp::spin_until_future_complete(node, result2);
+                if (rclcpp::spin_until_future_complete(node, result2, 2s) != rclcpp::FutureReturnCode::SUCCESS) {
+                    ROS_WARN("Failed to get model state");
+                    continue;
+                }
                 object_pose[name] = result2.get()->pose;
 #endif
             }
