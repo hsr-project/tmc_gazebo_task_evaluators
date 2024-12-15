@@ -259,7 +259,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub7 = n.subscribe("/remocon_in_wagon_detector/similarity", 1, cb_count_remocon);
     ros::Subscriber sub8 = n.subscribe("/stapler_in_wagon_detector/similarity", 1, cb_count_stapler);
 #else
-    prev_detect_cb = node->get_clock()->now();
+    prev_detect_cb = node->now();
 
     auto pub = node->create_publisher<std_msgs::msg::Float32>("/score", 1000);
     auto pubmsg = node->create_publisher<std_msgs::msg::String>("/message", 1000);

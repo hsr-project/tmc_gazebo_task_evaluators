@@ -52,6 +52,8 @@ DAMAGE.
 #include <geometry_msgs/msg/pose.hpp>
 #include <gazebo_msgs/srv/get_world_properties.hpp>
 #include <gazebo_msgs/srv/get_model_state.hpp>
+#include <chrono>
+using namespace std::chrono_literals;
 rclcpp::Node::SharedPtr node = nullptr;
 #define ROS_INFO(...) RCLCPP_INFO(node->get_logger(), __VA_ARGS__)
 #define ROS_WARN(...) RCLCPP_WARN(node->get_logger(), __VA_ARGS__)
@@ -119,15 +121,38 @@ void get_objects_in_shelf(std::vector<std::string> &objects)
         auto p = model_state.response.pose;
 #else
     auto world_properties = std::make_shared<gazebo_msgs::srv::GetWorldProperties::Request>();
-    auto result = getWorldProperties->async_send_request(world_properties);
-    rclcpp::spin_until_future_complete(node, result);
-    for (auto name: result.get()->model_names) {
+    std::vector<std::string> model_names;
+    while(true) {
+        auto result = getWorldProperties->async_send_request(world_properties);
+        if (!rclcpp::ok()) {
+            ROS_ERROR("Interrupted while waiting for the service. Exiting.");
+            return;
+        }
+        if (rclcpp::spin_until_future_complete(node, result, 5s) == rclcpp::FutureReturnCode::SUCCESS) {
+            model_names = result.get()->model_names;
+            break;
+        }
+        ROS_WARN("Failed to get world properties, retrying");
+    }
+    for (auto name: model_names) {
+        ROS_INFO("name: %s", name.c_str());
         auto model_state = std::make_shared<gazebo_msgs::srv::GetModelState::Request>();
         model_state->model_name = name;
         model_state->relative_entity_name = "wrc_bookshelf::link";
-        auto result2 = getModelState->async_send_request(model_state);
-        rclcpp::spin_until_future_complete(node, result2);
-        auto p = result2.get()->pose;
+        geometry_msgs::msg::Pose p;
+        while(true) {
+            auto result2 = getModelState->async_send_request(model_state);
+            if (!rclcpp::ok()) {
+                ROS_ERROR("Interrupted while waiting for the service. Exiting.");
+                return;
+            }
+            if (rclcpp::spin_until_future_complete(node, result2, 5s) == rclcpp::FutureReturnCode::SUCCESS) {
+                p = result2.get()->pose;
+                break;
+            }
+            ROS_WARN("Failed to get model state, retrying");
+        }
+        ROS_INFO("pose: %f %f %f", p.position.x, p.position.y, p.position.z);
 #endif
         if (name != "wrc_bookshelf" && 
             fabs(p.position.x) < 0.8 / 2 &&
@@ -151,15 +176,36 @@ void get_objects_in_humanfront(std::vector<std::string> &objects)
         auto p = model_state.response.pose;
 #else
     auto world_properties = std::make_shared<gazebo_msgs::srv::GetWorldProperties::Request>();
-    auto result = getWorldProperties->async_send_request(world_properties);
-    rclcpp::spin_until_future_complete(node, result);
-    for (auto name: result.get()->model_names) {
+    std::vector<std::string> model_names;
+    while(true) {
+        auto result = getWorldProperties->async_send_request(world_properties);
+        if (!rclcpp::ok()) {
+            ROS_ERROR("Interrupted while waiting for the service. Exiting.");
+            return;
+        }
+        if (rclcpp::spin_until_future_complete(node, result, 5s) == rclcpp::FutureReturnCode::SUCCESS) {
+            model_names = result.get()->model_names;
+            break;
+        }
+        ROS_WARN("Failed to get world properties, retrying");
+    }
+    for (auto name: model_names) {
         auto model_state = std::make_shared<gazebo_msgs::srv::GetModelState::Request>();
         model_state->model_name = name;
         model_state->relative_entity_name = "wrc_frame::link";
-        auto result2 = getModelState->async_send_request(model_state);
-        rclcpp::spin_until_future_complete(node, result2);
-        auto p = result2.get()->pose;
+        geometry_msgs::msg::Pose p;
+        while(true) {
+            auto result2 = getModelState->async_send_request(model_state);
+            if (!rclcpp::ok()) {
+                ROS_ERROR("Interrupted while waiting for the service. Exiting.");
+                return;
+            }
+            if (rclcpp::spin_until_future_complete(node, result2, 5s) == rclcpp::FutureReturnCode::SUCCESS) {
+                p = result2.get()->pose;
+                break;
+            }
+            ROS_WARN("Failed to get model state, retrying");
+        }
 #endif
         if (name.find("task2_") == 0 &&
             fabs(p.position.x - 1.5) < 3.0 / 2 &&
@@ -183,15 +229,36 @@ void get_task1_objects_on_tables(std::vector<std::string> &objects)
         auto p = model_state.response.pose;
 #else
     auto world_properties = std::make_shared<gazebo_msgs::srv::GetWorldProperties::Request>();
-    auto result = getWorldProperties->async_send_request(world_properties);
-    rclcpp::spin_until_future_complete(node, result);
-    for (auto name: result.get()->model_names) {
+    std::vector<std::string> model_names;
+    while(true) {
+        auto result = getWorldProperties->async_send_request(world_properties);
+        if (!rclcpp::ok()) {
+            ROS_ERROR("Interrupted while waiting for the service. Exiting.");
+            return;
+        }
+        if (rclcpp::spin_until_future_complete(node, result, 5s) == rclcpp::FutureReturnCode::SUCCESS) {
+            model_names = result.get()->model_names;
+            break;
+        }
+        ROS_WARN("Failed to get world properties, retrying");
+    }
+    for (auto name: model_names) {
         auto model_state = std::make_shared<gazebo_msgs::srv::GetModelState::Request>();
         model_state->model_name = name;
         model_state->relative_entity_name = "wrc_frame::link";
-        auto result2 = getModelState->async_send_request(model_state);
-        rclcpp::spin_until_future_complete(node, result2);
-        auto p = result2.get()->pose;
+        geometry_msgs::msg::Pose p;
+        while(true) {
+            auto result2 = getModelState->async_send_request(model_state);
+            if (!rclcpp::ok()) {
+                ROS_ERROR("Interrupted while waiting for the service. Exiting.");
+                return;
+            }
+            if (rclcpp::spin_until_future_complete(node, result2, 5s) == rclcpp::FutureReturnCode::SUCCESS) {
+                p = result2.get()->pose;
+                break;
+            }
+            ROS_WARN("Failed to get model state, retrying");
+        }
 #endif
         if (name.find("task1_") == 0 &&
             fabs(p.position.x + 0.7) < 1.4 / 2 &&
@@ -268,7 +335,13 @@ void count_task2_score()
 #if ROS1
 void cb_hsrb_in_room2(const std_msgs::Int16::ConstPtr& count)
 #else
-void cb_hsrb_in_room2(const std_msgs::msg::Int16::SharedPtr count)
+std_msgs::msg::Int16::SharedPtr cb_hsrb_in_room2_count = nullptr;
+double cb_hsrb_in_room2_now = 0.0;
+void cb_hsrb_in_room2(const std_msgs::msg::Int16::SharedPtr count) {
+    cb_hsrb_in_room2_count = count;
+    cb_hsrb_in_room2_now = node->now().seconds();
+}
+void cb_hsrb_in_room2_sub(const std_msgs::msg::Int16::SharedPtr count)
 #endif
 {
     static bool first_time = true;
@@ -284,7 +357,7 @@ void cb_hsrb_in_room2(const std_msgs::msg::Int16::SharedPtr count)
 #if ROS1
             task2_start_time = ros::Time::now().toSec();
 #else
-            task2_start_time = node->get_clock()->now().seconds();
+            task2_start_time = cb_hsrb_in_room2_now;
 #endif
 
             // calculate time bonus when all the objects are cleaned
@@ -300,8 +373,11 @@ void cb_hsrb_in_room2(const std_msgs::msg::Int16::SharedPtr count)
             }
 
             // publish first request
+            ROS_WARN("random object in shelf");
             task2_target = random_object_in_shelf();
+            ROS_WARN("random person");
             task2_target_person = random_person();
+            ROS_WARN("target object: %s, target person: %s", task2_target.c_str(), task2_target_person.c_str());
 #if ROS1
             std_msgs::String msg;
             msg.data = task2_target + " to person " + task2_target_person;
@@ -319,7 +395,16 @@ void cb_hsrb_in_room2(const std_msgs::msg::Int16::SharedPtr count)
 #if ROS1
 void cb_hsrb_in_humanfront(const std::string place, const std_msgs::Int16::ConstPtr& count)
 #else
+std::string cb_hsrb_in_humanfront_place;
+std_msgs::msg::Int16::SharedPtr cb_hsrb_in_humanfront_count = nullptr;
+double cb_hsrb_in_humanfront_now = 0.0;
 void cb_hsrb_in_humanfront(const std::string place, const std_msgs::msg::Int16::SharedPtr count)
+{
+    cb_hsrb_in_humanfront_place = place;
+    cb_hsrb_in_humanfront_count = count;
+    cb_hsrb_in_humanfront_now = node->now().seconds();
+}
+void cb_hsrb_in_humanfront_sub(const std::string place, const std_msgs::msg::Int16::SharedPtr count)
 #endif
 {
     static int times = 0;
@@ -341,7 +426,7 @@ void cb_hsrb_in_humanfront(const std::string place, const std_msgs::msg::Int16::
 #if ROS1
             double task2_end_time = ros::Time::now().toSec();
 #else
-            double task2_end_time = node->get_clock()->now().seconds();
+            double task2_end_time = cb_hsrb_in_humanfront_now;
 #endif
             double task2_duration = task2_end_time - task2_start_time;
             std::vector<std::string> remaining_task1_objects;
@@ -530,7 +615,14 @@ int main(int argc, char **argv)
 #else
     getWorldProperties = node->create_client<gazebo_msgs::srv::GetWorldProperties>("/gazebo/get_world_properties");
     getModelState = node->create_client<gazebo_msgs::srv::GetModelState>("/gazebo/get_model_state");
-    prev_detect_cb = rclcpp::Clock().now();
+    while (!getWorldProperties->wait_for_service(1s) || !getModelState->wait_for_service(1s)) {
+        if (!rclcpp::ok()) {
+            ROS_ERROR("Interrupted while waiting for the service. Exiting.");
+            return 0;
+        }
+        // ROS_INFO("service not available, waiting again...");
+    }
+    prev_detect_cb = node->now();
     auto pub = node->create_publisher<std_msgs::msg::Float32>("/score", 1000);
     pubmsg = node->create_publisher<std_msgs::msg::String>("/message", 1000);
     auto rate = rclcpp::Rate(10);
@@ -635,6 +727,15 @@ int main(int argc, char **argv)
 #else
     while (rclcpp::ok()) {
         std_msgs::msg::Float32 msg;
+        // dirty hack to call gazebo api in main thread
+        if (cb_hsrb_in_room2_count) {
+            cb_hsrb_in_room2_sub(cb_hsrb_in_room2_count);
+            cb_hsrb_in_room2_count = nullptr;
+        }
+        if (cb_hsrb_in_humanfront_count) {
+            cb_hsrb_in_humanfront_sub(cb_hsrb_in_humanfront_place, cb_hsrb_in_humanfront_count);
+            cb_hsrb_in_humanfront_count = nullptr;
+        }
 #endif
         double score = task1_delivery_score + task1_category_score + task1_time_bonus + task1_draweropen_bonus + task2a_score + task2_score + task2_time_bonus + overall_time_bonus;
         if (fabs(score - prev_score) > 0.1) {
